@@ -1545,7 +1545,8 @@ with tab1:
             st.markdown("---")
             st.markdown("### Total Product Volume")
             
-            total_col1, total_col2, total_col3 = st.columns([2, 1, 2])
+            # New layout: Single Unit | Quantity | Total Volume (all in one row)
+            total_col1, total_col2, total_col3 = st.columns([2, 1.5, 2])
             
             with total_col1:
                 result_unit = st.session_state.pref_volume_unit
@@ -1568,19 +1569,15 @@ with tab1:
                 """, unsafe_allow_html=True)
             
             with total_col2:
-                # Create a 70px container that holds both × and input
-                st.markdown('<div style="height: 70px; overflow: hidden;">', unsafe_allow_html=True)
-                
-                # × symbol takes top half
+                # Quantity input with label above
                 st.markdown("""
-                <div style="height: 30px; display: flex; align-items: center; justify-content: center; margin-bottom: -5px;">
-                    <span style="font-size: 1.3rem; color: #64748b; font-weight: bold;">×</span>
+                <div style="color: #94a3b8; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px;">
+                    Quantity (max 999)
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Quantity input in bottom half
                 quantity = st.number_input(
-                    "Qty",
+                    "Quantity",
                     min_value=1,
                     max_value=999,
                     step=1,
@@ -1588,8 +1585,6 @@ with tab1:
                     key="product_quantity",
                     label_visibility="collapsed"
                 )
-                
-                st.markdown('</div>', unsafe_allow_html=True)
             
             with total_col3:
                 total_volume = single_volume * quantity
@@ -1599,7 +1594,7 @@ with tab1:
                 # Compact inline display
                 st.markdown(f"""
                 <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 8px; height: 70px; display: flex; flex-direction: column; justify-content: center;">
-                    <div style="color: #f87171; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px;">Total Volume</div>
+                    <div style="color: #f87171; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px;">Total Volume (×{quantity})</div>
                     <div style="font-size: 1.4rem; font-weight: bold; color: #f87171; font-family: 'JetBrains Mono', monospace;">
                         {total_volume:.2f} <span style="font-size: 0.9rem; opacity: 0.8;">{result_unit}</span>
                     </div>
@@ -2372,6 +2367,7 @@ with tab2:
                 
                 conversion_factor = mm3_to_unit[comparison_unit]
                 
+                # Display each project with all data in compact format
                 for project in projects_with_boxes:
                     box_volume_mm3 = project['box_volume_mm3']
                     product_volume_mm3 = project['primary_volume_mm3']
@@ -2390,64 +2386,49 @@ with tab2:
                         percentage_remaining = 0
                         percentage_used = 0
                     
-                    # Display comparison card
+                    # Display project card with all info
                     with st.container():
-                        st.markdown(f"### {project['project_name']}")
+                        st.markdown(f"### 📦 {project['project_name']} (Project #{project['project_number']})")
                         
-                        col1, col2, col3, col4, col5 = st.columns(5)
+                        # Row 1: Volume metrics
+                        vol_col1, vol_col2, vol_col3 = st.columns(3)
                         
-                        with col1:
-                            st.metric(
-                                "Box Volume",
-                                f"{box_volume:,.2f}",
-                                delta=None
-                            )
+                        with vol_col1:
+                            st.metric("Box Volume", f"{box_volume:,.2f}", delta=None)
                             st.caption(comparison_unit)
                         
-                        with col2:
-                            st.metric(
-                                "Product Volume",
-                                f"{product_volume:,.2f}",
-                                delta=f"{percentage_used:.1f}% used"
-                            )
+                        with vol_col2:
+                            st.metric("Product Volume", f"{product_volume:,.2f}", delta=f"{percentage_used:.1f}% used")
                             st.caption(comparison_unit)
                         
-                        with col3:
-                            st.metric(
-                                "Remaining Volume",
-                                f"{remaining_volume:,.2f}",
-                                delta=f"{percentage_remaining:.1f}% free" if remaining_volume >= 0 else "Overflow!"
-                            )
+                        with vol_col3:
+                            st.metric("Remaining Volume", f"{remaining_volume:,.2f}", 
+                                     delta=f"{percentage_remaining:.1f}% free" if remaining_volume >= 0 else "Overflow!")
                             st.caption(comparison_unit)
                         
-                        with col4:
-                            # Volume Efficiency Percentage
-                            if percentage_used >= 80:
-                                eff_delta = "Excellent"
-                                eff_color = "normal"
-                            elif percentage_used >= 60:
-                                eff_delta = "Good"
-                                eff_color = "normal"
-                            elif percentage_used >= 40:
-                                eff_delta = "Moderate"
-                                eff_color = "off"
-                            else:
-                                eff_delta = "Low"
-                                eff_color = "inverse"
-                            
-                            st.metric(
-                                "Volume Efficiency",
-                                f"{percentage_used:.1f}%",
-                                delta=eff_delta,
-                                delta_color=eff_color
-                            )
-                            st.caption("Space Utilization")
+                        # Row 2: Efficiency bar graph (full width)
+                        st.markdown("#### Remaining Volume Efficiency")
                         
-                        with col5:
-                            # Interactive Bar Graph instead of icon
-                            st.markdown("**Efficiency**")
-                            bar_fig = create_mini_efficiency_bar(percentage_used)
-                            st.plotly_chart(bar_fig, use_container_width=True, key=f"efficiency_bar_{project['project_number']}")
+                        # Determine efficiency level
+                        if percentage_used >= 85:
+                            eff_label = "Excellent"
+                        elif percentage_used >= 75:
+                            eff_label = "Good"
+                        elif percentage_used >= 60:
+                            eff_label = "Fair"
+                        else:
+                            eff_label = "Poor"
+                        
+                        # Show efficiency percentage with label
+                        eff_info_col1, eff_info_col2 = st.columns([1, 3])
+                        with eff_info_col1:
+                            st.markdown(f"**{percentage_used:.1f}%** - {eff_label}")
+                        
+                        # Interactive bar graph
+                        bar_fig = create_mini_efficiency_bar(percentage_used)
+                        # Make it taller for better visibility
+                        bar_fig.update_layout(height=50)
+                        st.plotly_chart(bar_fig, use_container_width=True, key=f"efficiency_bar_{project['project_number']}")
                         
                         st.markdown("---")
             else:
