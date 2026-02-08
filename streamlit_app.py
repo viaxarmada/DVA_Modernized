@@ -588,7 +588,7 @@ def create_efficiency_gauge(efficiency_percentage):
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font={'color': "#e2e8f0", 'family': "Inter"},
+        font={'color': "#e2e8f0"},
         height=300,
         margin=dict(l=20, r=20, t=60, b=20)
     )
@@ -676,7 +676,7 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         ),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#e2e8f0', family='Inter'),
+        font=dict(color='#e2e8f0'),
         height=400,
         margin=dict(l=0, r=0, t=30, b=0),
         showlegend=False,
@@ -709,7 +709,7 @@ def create_volume_comparison_chart(box_volume, product_volume, unit='cubic inche
         ),
         text=f'{product_volume:.2f} {unit}<br>({efficiency:.1f}%)',
         textposition='inside',
-        textfont=dict(color='white', size=14, family='Inter'),
+        textfont=dict(color='white', size=14),
         hovertemplate=f'Product: {product_volume:.2f} {unit}<br>Efficiency: {efficiency:.1f}%<extra></extra>'
     ))
     
@@ -725,7 +725,7 @@ def create_volume_comparison_chart(box_volume, product_volume, unit='cubic inche
         ),
         text=f'{remaining:.2f} {unit}<br>({100-efficiency:.1f}%)',
         textposition='inside',
-        textfont=dict(color='white', size=14, family='Inter'),
+        textfont=dict(color='white', size=14),
         hovertemplate=f'Remaining: {remaining:.2f} {unit}<br>Free: {100-efficiency:.1f}%<extra></extra>'
     ))
     
@@ -733,7 +733,7 @@ def create_volume_comparison_chart(box_volume, product_volume, unit='cubic inche
         barmode='stack',
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#e2e8f0', family='Inter'),
+        font=dict(color='#e2e8f0'),
         xaxis=dict(
             title=f'Volume ({unit})',
             gridcolor='rgba(148, 163, 184, 0.2)',
@@ -785,7 +785,7 @@ def create_donut_chart(efficiency_percentage):
             line=dict(color='rgba(10, 25, 41, 0.8)', width=3)
         ),
         textinfo='label+percent',
-        textfont=dict(size=13, color='white', family='Inter'),
+        textfont=dict(size=13, color='white'),
         hovertemplate='<b>%{label}</b><br>%{value:.1f}%<extra></extra>',
         pull=[0.05, 0]
     )])
@@ -793,7 +793,7 @@ def create_donut_chart(efficiency_percentage):
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#e2e8f0', family='Inter'),
+        font=dict(color='#e2e8f0'),
         showlegend=True,
         legend=dict(
             orientation='h',
@@ -808,7 +808,7 @@ def create_donut_chart(efficiency_percentage):
         annotations=[dict(
             text=f'<b>{efficiency_percentage:.1f}%</b><br><span style="font-size:12px">Filled</span>',
             x=0.5, y=0.5,
-            font=dict(size=24, color=product_color, family='Inter'),
+            font=dict(size=24, color=product_color),
             showarrow=False
         )]
     )
