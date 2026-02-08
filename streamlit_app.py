@@ -1174,18 +1174,22 @@ def create_new_project():
     st.session_state.project_description = 'Project description here'
     st.session_state.contact_info = 'contact@email.com'
     
-    # Set default calculator values
-    st.session_state.primary_weight = 100.0
-    st.session_state.primary_unit = 'grams'
+    # Reset calculator input fields to 0.0
+    st.session_state.product_weight = 0.0
+    st.session_state.product_quantity = 1
+    
+    # Clear calculated values
     if 'primary_volume_mm3' in st.session_state:
         del st.session_state.primary_volume_mm3
+    if 'total_product_volume_mm3' in st.session_state:
+        del st.session_state.total_product_volume_mm3
     
-    # Set default box values
-    st.session_state.box_length = 10.0
-    st.session_state.box_width = 10.0
-    st.session_state.box_height = 10.0
-    st.session_state.dimension_unit = 'cm'
-    st.session_state.box_result_unit = 'cubic cm'
+    # Reset box dimension fields to 0.0
+    st.session_state.box_length = 0.0
+    st.session_state.box_width = 0.0
+    st.session_state.box_height = 0.0
+    
+    # Clear box volume
     if 'box_volume_mm3' in st.session_state:
         del st.session_state.box_volume_mm3
     
@@ -1456,6 +1460,18 @@ with tab1:
         st.session_state.pref_weight_unit = 'ounces'
     if 'pref_volume_unit' not in st.session_state:
         st.session_state.pref_volume_unit = 'cubic inches'
+    
+    # Initialize input fields to persist values across navigation
+    if 'product_weight' not in st.session_state:
+        st.session_state.product_weight = 0.0
+    if 'box_length' not in st.session_state:
+        st.session_state.box_length = 0.0
+    if 'box_width' not in st.session_state:
+        st.session_state.box_width = 0.0
+    if 'box_height' not in st.session_state:
+        st.session_state.box_height = 0.0
+    if 'product_quantity' not in st.session_state:
+        st.session_state.product_quantity = 1
     
 
     
