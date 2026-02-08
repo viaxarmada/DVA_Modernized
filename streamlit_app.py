@@ -1478,7 +1478,6 @@ with tab1:
         if 'primary_volume_mm3' in st.session_state and st.session_state.primary_volume_mm3 > 0:
             st.markdown("---")
             st.markdown("### Total Product Volume")
-            st.markdown("*Multiply by quantity for multiple units*")
             
             total_col1, total_col2, total_col3 = st.columns([2, 1, 2])
             
@@ -1492,24 +1491,25 @@ with tab1:
                 }
                 single_volume = st.session_state.primary_volume_mm3 * mm3_to_display[result_unit]
                 
+                # Compact inline display
                 st.markdown(f"""
-                <div class="metric-card" style="border-color: #8b5cf6;">
-                    <div style="color: #a78bfa; font-weight: bold;">Single Unit Volume</div>
-                    <div style="font-size: 2rem; font-weight: bold; color: #a78bfa; margin: 10px 0;">
-                        {single_volume:.2f}
+                <div style="padding: 12px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(167, 139, 250, 0.3); border-radius: 8px; height: 70px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color: #a78bfa; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px;">Single Unit</div>
+                    <div style="font-size: 1.4rem; font-weight: bold; color: #a78bfa; font-family: 'JetBrains Mono', monospace;">
+                        {single_volume:.2f} <span style="font-size: 0.9rem; opacity: 0.8;">{result_unit}</span>
                     </div>
-                    <div class="result-unit">{result_unit}</div>
                 </div>
                 """, unsafe_allow_html=True)
             
             with total_col2:
-                st.markdown("<div style='text-align: center; font-size: 2rem; margin-top: 40px;'>×</div>", unsafe_allow_html=True)
+                st.markdown("<div style='text-align: center; font-size: 1.5rem; margin-top: 20px; color: #64748b;'>×</div>", unsafe_allow_html=True)
                 quantity = st.number_input(
-                    "Quantity",
+                    "Qty",
                     min_value=1,
                     step=1,
                     value=1,
-                    key="product_quantity"
+                    key="product_quantity",
+                    label_visibility="collapsed"
                 )
             
             with total_col3:
@@ -1517,13 +1517,13 @@ with tab1:
                 total_volume_mm3 = st.session_state.primary_volume_mm3 * quantity
                 st.session_state.total_product_volume_mm3 = total_volume_mm3
                 
+                # Compact inline display
                 st.markdown(f"""
-                <div class="metric-card" style="border-color: #ef4444;">
-                    <div style="color: #f87171; font-weight: bold;">Total Volume</div>
-                    <div style="font-size: 2rem; font-weight: bold; color: #f87171; margin: 10px 0;">
-                        {total_volume:.2f}
+                <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(248, 113, 113, 0.3); border-radius: 8px; height: 70px; display: flex; flex-direction: column; justify-content: center;">
+                    <div style="color: #f87171; font-size: 0.75rem; font-weight: 600; margin-bottom: 4px;">Total Volume</div>
+                    <div style="font-size: 1.4rem; font-weight: bold; color: #f87171; font-family: 'JetBrains Mono', monospace;">
+                        {total_volume:.2f} <span style="font-size: 0.9rem; opacity: 0.8;">{result_unit}</span>
                     </div>
-                    <div class="result-unit">{result_unit}</div>
                 </div>
                 """, unsafe_allow_html=True)
         
@@ -1610,7 +1610,12 @@ with tab1:
                 st.session_state.get('box_height', 0),
                 dimension_unit
             )
-            st.markdown(box_svg, unsafe_allow_html=True)
+            # Use HTML component to ensure SVG renders properly
+            st.components.v1.html(f"""
+            <div style="width: 100%; height: 500px; display: flex; justify-content: center; align-items: center; background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
+                {box_svg}
+            </div>
+            """, height=500)
         
         # Box Volume Results (below the preview)
         if 'box_volume_mm3' in st.session_state:
