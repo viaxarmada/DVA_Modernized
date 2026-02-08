@@ -1470,17 +1470,12 @@ with tab1:
             st.markdown("### Input")
             weight_unit = st.session_state.pref_weight_unit
             
-            # Initialize if not present
-            if 'product_weight' not in st.session_state:
-                st.session_state.product_weight = None
-            
             weight = st.number_input(
                 f"Weight of Water ({weight_unit})",
                 min_value=0.0,
-                value=st.session_state.product_weight,
+                value=0.0,  # Default to 0.0 instead of None
                 step=0.1,
                 format="%.2f",
-                placeholder="Enter weight...",
                 help=f"Enter weight in {weight_unit}",
                 key="product_weight"
             )
@@ -1573,9 +1568,9 @@ with tab1:
                 """, unsafe_allow_html=True)
             
             with total_col2:
-                # Centered × symbol aligned with boxes
+                # Centered × symbol aligned with boxes - moved higher
                 st.markdown("""
-                <div style="height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                <div style="height: 70px; display: flex; align-items: center; justify-content: center;">
                     <span style="font-size: 1.5rem; color: #64748b; font-weight: bold;">×</span>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1643,46 +1638,35 @@ with tab1:
             dimension_unit = st.session_state.pref_dimension_unit
             st.info(f"ℹ️ All dimensions in **{dimension_unit}**")
             
-            # Initialize if not present
-            if 'box_length' not in st.session_state:
-                st.session_state.box_length = None
-            if 'box_width' not in st.session_state:
-                st.session_state.box_width = None
-            if 'box_height' not in st.session_state:
-                st.session_state.box_height = None
-            
             box_length = st.number_input(
                 f"Length ({dimension_unit})",
                 min_value=0.0,
-                value=st.session_state.box_length,
+                value=0.0,  # Default to 0.0
                 step=0.1,
                 format="%.2f",
-                placeholder="Enter length...",
                 key="box_length"
             )
             
             box_width = st.number_input(
                 f"Width ({dimension_unit})",
                 min_value=0.0,
-                value=st.session_state.box_width,
+                value=0.0,  # Default to 0.0
                 step=0.1,
                 format="%.2f",
-                placeholder="Enter width...",
                 key="box_width"
             )
             
             box_height = st.number_input(
                 f"Height ({dimension_unit})",
                 min_value=0.0,
-                value=st.session_state.box_height,
+                value=0.0,  # Default to 0.0
                 step=0.1,
                 format="%.2f",
-                placeholder="Enter height...",
                 key="box_height"
             )
             
             if st.button("🧮 Calculate", use_container_width=True, type="primary"):
-                if box_length and box_length > 0 and box_width and box_width > 0 and box_height and box_height > 0:
+                if box_length > 0 and box_width > 0 and box_height > 0:
                     dim_to_mm = {
                         'mm': 1,
                         'cm': 10,
@@ -1705,10 +1689,10 @@ with tab1:
         with col2:
             st.markdown("#### 3D Box Preview")
             
-            # Get current values (handle None)
-            curr_length = st.session_state.get('box_length') or 0
-            curr_width = st.session_state.get('box_width') or 0
-            curr_height = st.session_state.get('box_height') or 0
+            # Get current values - handle 0 properly
+            curr_length = st.session_state.get('box_length', 0)
+            curr_width = st.session_state.get('box_width', 0)
+            curr_height = st.session_state.get('box_height', 0)
             
             if curr_length > 0 and curr_width > 0 and curr_height > 0:
                 # Calculate efficiency if we have product volume
