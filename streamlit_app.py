@@ -846,6 +846,60 @@ def create_donut_chart(efficiency_percentage):
     
     return fig
 
+def create_mini_efficiency_bar(efficiency_pct):
+    """Create mini horizontal bar chart for project efficiency"""
+    # Determine color based on efficiency
+    if efficiency_pct >= 85:
+        color = '#10b981'
+        label = 'Excellent'
+    elif efficiency_pct >= 75:
+        color = '#3b82f6'
+        label = 'Good'
+    elif efficiency_pct >= 60:
+        color = '#f59e0b'
+        label = 'Fair'
+    else:
+        color = '#ef4444'
+        label = 'Poor'
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        x=[efficiency_pct],
+        y=[''],
+        orientation='h',
+        marker=dict(
+            color=color,
+            line=dict(color='rgba(255,255,255,0.2)', width=1)
+        ),
+        hovertemplate=f'<b>{efficiency_pct:.1f}% Filled</b><br>{label} Efficiency<extra></extra>',
+        showlegend=False,
+        hoverlabel=dict(
+            bgcolor=color,
+            font=dict(color='white', size=14, family='DM Sans')
+        )
+    ))
+    
+    fig.update_layout(
+        xaxis=dict(
+            range=[0, 100],
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False
+        ),
+        yaxis=dict(
+            showticklabels=False,
+            showgrid=False
+        ),
+        height=35,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        hovermode='closest'
+    )
+    
+    return fig
+
 def create_2d_box_illustration(length, width, height, unit='inches'):
     """Create dynamic 2D box illustration with dimension callouts"""
     if length <= 0 or width <= 0 or height <= 0:
@@ -1589,32 +1643,46 @@ with tab1:
             dimension_unit = st.session_state.pref_dimension_unit
             st.info(f"ℹ️ All dimensions in **{dimension_unit}**")
             
+            # Initialize if not present
+            if 'box_length' not in st.session_state:
+                st.session_state.box_length = None
+            if 'box_width' not in st.session_state:
+                st.session_state.box_width = None
+            if 'box_height' not in st.session_state:
+                st.session_state.box_height = None
+            
             box_length = st.number_input(
                 f"Length ({dimension_unit})",
                 min_value=0.0,
+                value=st.session_state.box_length,
                 step=0.1,
                 format="%.2f",
+                placeholder="Enter length...",
                 key="box_length"
             )
             
             box_width = st.number_input(
                 f"Width ({dimension_unit})",
                 min_value=0.0,
+                value=st.session_state.box_width,
                 step=0.1,
                 format="%.2f",
+                placeholder="Enter width...",
                 key="box_width"
             )
             
             box_height = st.number_input(
                 f"Height ({dimension_unit})",
                 min_value=0.0,
+                value=st.session_state.box_height,
                 step=0.1,
                 format="%.2f",
+                placeholder="Enter height...",
                 key="box_height"
             )
             
             if st.button("🧮 Calculate", use_container_width=True, type="primary"):
-                if box_length > 0 and box_width > 0 and box_height > 0:
+                if box_length and box_length > 0 and box_width and box_width > 0 and box_height and box_height > 0:
                     dim_to_mm = {
                         'mm': 1,
                         'cm': 10,
@@ -1635,20 +1703,57 @@ with tab1:
                     st.error("⚠️ Please enter all dimensions")
         
         with col2:
-            st.markdown("#### Live Preview")
-            # Dynamic 2D box illustration
-            box_svg = create_2d_box_illustration(
-                st.session_state.get('box_length', 0),
-                st.session_state.get('box_width', 0),
-                st.session_state.get('box_height', 0),
-                dimension_unit
-            )
-            # Use HTML component to ensure SVG renders properly
-            st.components.v1.html(f"""
-            <div style="width: 100%; height: 500px; display: flex; justify-content: center; align-items: center; background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
-                {box_svg}
-            </div>
-            """, height=500)
+            st.markdown("#### 3D Box Preview")
+            
+            # Get current values (handle None)
+            curr_length = st.session_state.get('box_length') or 0
+            curr_width = st.session_state.get('box_width') or 0
+            curr_height = st.session_state.get('box_height') or 0
+            
+            if curr_length > 0 and curr_width > 0 and curr_height > 0:
+                # Calculate efficiency if we have product volume
+                if 'primary_volume_mm3' in st.session_state and st.session_state.primary_volume_mm3 > 0:
+                    # Calculate box volume in mm3
+                    dim_to_mm = {
+                        'mm': 1,
+                        'cm': 10,
+                        'inches': 25.4,
+                        'feet': 304.8
+                    }
+                    box_vol_mm3 = (curr_length * dim_to_mm[dimension_unit]) * \
+                                 (curr_width * dim_to_mm[dimension_unit]) * \
+                                 (curr_height * dim_to_mm[dimension_unit])
+                    
+                    product_vol_mm3 = st.session_state.get('total_product_volume_mm3', 
+                                                           st.session_state['primary_volume_mm3'])
+                    efficiency_pct = (product_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
+                else:
+                    efficiency_pct = 50  # Default preview
+                
+                # Create 3D preview using the existing function
+                preview_fig = create_3d_box_visualization(
+                    curr_length,
+                    curr_width,
+                    curr_height,
+                    efficiency_pct,
+                    dimension_unit
+                )
+                
+                # Match height to input section
+                preview_fig.update_layout(height=400)
+                st.plotly_chart(preview_fig, use_container_width=True, key="box_preview_3d")
+            else:
+                # Placeholder when no dimensions
+                st.markdown("""
+                <div style="height: 400px; display: flex; align-items: center; justify-content: center; 
+                            background: rgba(15, 23, 42, 0.4); border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.2);">
+                    <div style="text-align: center; color: #64748b;">
+                        <div style="font-size: 3rem; margin-bottom: 16px;">📦</div>
+                        <div style="font-size: 1.1rem;">Enter dimensions to see 3D preview</div>
+                        <div style="font-size: 0.9rem; margin-top: 8px; opacity: 0.7;">Interactive • Rotate • Zoom</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
         
         # Box Volume Results (below the preview)
         if 'box_volume_mm3' in st.session_state:
@@ -1730,21 +1835,31 @@ with tab1:
                     </div>
                     """, unsafe_allow_html=True)
         
+        # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
-        nav_col1, nav_col2, nav_spacer = st.columns([1, 1, 2])
+        st.markdown("### 🧭 Quick Navigation")
+        nav_col1, nav_col2, nav_col3 = st.columns(3)
         
         with nav_col1:
-            if st.button("← Back to Primary", use_container_width=True, key="back_to_primary"):
+            if st.button("📊 Primary Calculator", use_container_width=True, type="secondary", key="sec_to_primary"):
                 st.session_state.analyzer_section = 'primary'
                 st.rerun()
         
         with nav_col2:
-            if st.button("📊 Volume Analysis →", use_container_width=True, type="primary", key="to_analysis_from_secondary"):
+            st.button(
+                "📦 Secondary Packaging",
+                use_container_width=True,
+                disabled=True,  # Current section
+                type="primary"
+            )
+        
+        with nav_col3:
+            if st.button("📈 Volume Analysis", use_container_width=True, type="secondary", key="sec_to_analysis"):
                 if 'box_volume_mm3' in st.session_state:
                     st.session_state.analyzer_section = 'analysis'
                     st.rerun()
                 else:
-                    st.warning("⚠️ Please calculate box volume first")
+                    st.warning("⚠️ Calculate box volume first")
     
     # SECTION 3: VOLUME ANALYSIS (FULL SCREEN VISUALIZATIONS!)
     elif st.session_state.analyzer_section == 'analysis':
@@ -1811,10 +1926,28 @@ with tab1:
             else:
                 st.success(f"✅ Box has sufficient space with {remaining_volume_result:,.2f} {remaining_unit} remaining")
             
+            # Persistent Bottom Navigation - All 3 Sections
             st.markdown("---")
-            if st.button("← Back to Secondary Packaging", use_container_width=True, key="back_to_secondary"):
-                st.session_state.analyzer_section = 'secondary'
-                st.rerun()
+            st.markdown("### 🧭 Quick Navigation")
+            nav_col1, nav_col2, nav_col3 = st.columns(3)
+            
+            with nav_col1:
+                if st.button("📊 Primary Calculator", use_container_width=True, type="secondary", key="ana_to_primary"):
+                    st.session_state.analyzer_section = 'primary'
+                    st.rerun()
+            
+            with nav_col2:
+                if st.button("📦 Secondary Packaging", use_container_width=True, type="secondary", key="ana_to_secondary"):
+                    st.session_state.analyzer_section = 'secondary'
+                    st.rerun()
+            
+            with nav_col3:
+                st.button(
+                    "📈 Volume Analysis",
+                    use_container_width=True,
+                    disabled=True,  # Current section
+                    type="primary"
+                )
 
 # END OF SECTION NAVIGATION
 # TAB 2: Project Results
@@ -2234,11 +2367,9 @@ with tab2:
             projects_with_boxes = [p for p in st.session_state.loaded_projects_overview if p.get('box_volume_mm3', 0) > 0]
             
             if projects_with_boxes:
-                comparison_unit = st.selectbox(
-                    "Select unit for comparison:",
-                    ["cubic mm", "cubic cm", "cubic inches", "cubic feet"],
-                    key="comparison_unit_select"
-                )
+                # Use global unit preference instead of dropdown
+                comparison_unit = st.session_state.pref_volume_unit
+                st.info(f"ℹ️ Using **{comparison_unit}** (set in Unit Preferences)")
                 
                 # Conversion factors from mm³
                 mm3_to_unit = {
@@ -2322,18 +2453,10 @@ with tab2:
                             st.caption("Space Utilization")
                         
                         with col5:
-                            # Visual indicator
-                            if percentage_remaining >= 20:
-                                st.success("✅ Good Space")
-                            elif percentage_remaining >= 5:
-                                st.warning("⚠️ Tight Fit")
-                            else:
-                                st.error("❌ Too Full")
-                        
-                        # Progress bar
-                        if box_volume_mm3 > 0:
-                            st.progress(min(percentage_used / 100, 1.0))
-                            st.caption(f"Space Utilization: {percentage_used:.1f}% | Remaining: {percentage_remaining:.1f}%")
+                            # Interactive Bar Graph instead of icon
+                            st.markdown("**Efficiency**")
+                            bar_fig = create_mini_efficiency_bar(percentage_used)
+                            st.plotly_chart(bar_fig, use_container_width=True, key=f"efficiency_bar_{project['project_number']}")
                         
                         st.markdown("---")
             else:
