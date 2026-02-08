@@ -1415,15 +1415,32 @@ with tab1:
         with col1:
             st.markdown("### Input")
             weight_unit = st.session_state.pref_weight_unit
+            
+            # Initialize if not present
+            if 'product_weight' not in st.session_state:
+                st.session_state.product_weight = None
+            
             weight = st.number_input(
                 f"Weight of Water ({weight_unit})",
                 min_value=0.0,
+                value=st.session_state.product_weight,
                 step=0.1,
                 format="%.2f",
+                placeholder="Enter weight...",
                 help=f"Enter weight in {weight_unit}",
                 key="product_weight"
             )
             st.info(f"ℹ️ Using **{weight_unit}** (set in Unit Preferences)")
+            
+            # Conversion Reference - Moved here, same width as input
+            with st.expander("📐 Conversion Reference", expanded=False):
+                st.markdown("""
+                <div style="font-size: 0.85rem;">
+                <strong>1 US Fluid Ounce =</strong><br>
+                29,574 mm³ | 29.57 cm³ | 1.804 in³<br>
+                <em style="font-size: 0.75rem; color: #64748b;">Water at 4°C (1 g/mL)</em>
+                </div>
+                """, unsafe_allow_html=True)
         
         with col2:
             st.markdown("### Results")
@@ -1464,17 +1481,17 @@ with tab1:
                 """, unsafe_allow_html=True)
                 
                 st.info(f"ℹ️ Displaying in **{result_unit}** (set in Unit Preferences)")
+            else:
+                # Show placeholder when no input
+                st.markdown("""
+                <div class="metric-card" style="opacity: 0.5;">
+                    <div style="color: #64748b; font-weight: bold; font-size: 1.2rem;">Volume Result</div>
+                    <div style="font-size: 3rem; font-weight: 700; color: #475569; margin: 16px 0;">--</div>
+                    <div style="color: #64748b;">Enter weight to calculate</div>
+                </div>
+                """, unsafe_allow_html=True)
         
-        # Conversion Reference - Compact
-        with st.expander("📐 Conversion Reference", expanded=False):
-            st.markdown("""
-            <div style="font-size: 0.85rem;">
-            <strong>1 US Fluid Ounce =</strong><br>
-            29,574 mm³ | 29.57 cm³ | 1.804 in³<br>
-            <em style="font-size: 0.75rem; color: #64748b;">Water at 4°C (1 g/mL)</em>
-            </div>
-            """, unsafe_allow_html=True)
-        
+        # Total Product Volume section
         if 'primary_volume_mm3' in st.session_state and st.session_state.primary_volume_mm3 > 0:
             st.markdown("---")
             st.markdown("### Total Product Volume")
@@ -1502,10 +1519,16 @@ with tab1:
                 """, unsafe_allow_html=True)
             
             with total_col2:
-                st.markdown("<div style='text-align: center; font-size: 1.5rem; margin-top: 20px; color: #64748b;'>×</div>", unsafe_allow_html=True)
+                # Centered × symbol aligned with boxes
+                st.markdown("""
+                <div style="height: 70px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                    <span style="font-size: 1.5rem; color: #64748b; font-weight: bold;">×</span>
+                </div>
+                """, unsafe_allow_html=True)
                 quantity = st.number_input(
                     "Qty",
                     min_value=1,
+                    max_value=999,  # 3 digit maximum
                     step=1,
                     value=1,
                     key="product_quantity",
@@ -1527,21 +1550,31 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
         
+        # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
-        nav_col1, nav_col2, nav_spacer = st.columns([1, 1, 2])
+        st.markdown("### 🧭 Quick Navigation")
+        nav_col1, nav_col2, nav_col3 = st.columns(3)
         
         with nav_col1:
-            if st.button("📦 Secondary Packaging →", use_container_width=True, type="primary", key="to_secondary"):
+            st.button(
+                "📊 Primary Calculator",
+                use_container_width=True,
+                disabled=True,  # Current section
+                type="primary"
+            )
+        
+        with nav_col2:
+            if st.button("📦 Secondary Packaging", use_container_width=True, type="secondary", key="nav_to_secondary"):
                 st.session_state.analyzer_section = 'secondary'
                 st.rerun()
         
-        with nav_col2:
-            if st.button("📊 Volume Analysis →", use_container_width=True, type="primary", key="to_analysis_from_primary"):
-                if 'primary_volume_mm3' in st.session_state and 'box_volume_mm3' in st.session_state:
+        with nav_col3:
+            if st.button("📈 Volume Analysis", use_container_width=True, type="secondary", key="nav_to_analysis"):
+                if 'box_volume_mm3' in st.session_state:
                     st.session_state.analyzer_section = 'analysis'
                     st.rerun()
                 else:
-                    st.warning("⚠️ Please calculate box volume first")
+                    st.warning("⚠️ Calculate box volume first")
     
     # SECTION 2: SECONDARY PACKAGING
     elif st.session_state.analyzer_section == 'secondary':
