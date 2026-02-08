@@ -646,28 +646,25 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
     fig.update_layout(
         scene=dict(
             xaxis=dict(
-                title=f'Length ({dimension_unit})',
+                title=dict(text=f'Length ({dimension_unit})', font=dict(color='#94a3b8')),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor="rgba(148, 163, 184, 0.2)",
                 showbackground=True,
-                zerolinecolor="rgba(148, 163, 184, 0.3)",
-                titlefont=dict(color='#94a3b8')
+                zerolinecolor="rgba(148, 163, 184, 0.3)"
             ),
             yaxis=dict(
-                title=f'Width ({dimension_unit})',
+                title=dict(text=f'Width ({dimension_unit})', font=dict(color='#94a3b8')),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor="rgba(148, 163, 184, 0.2)",
                 showbackground=True,
-                zerolinecolor="rgba(148, 163, 184, 0.3)",
-                titlefont=dict(color='#94a3b8')
+                zerolinecolor="rgba(148, 163, 184, 0.3)"
             ),
             zaxis=dict(
-                title=f'Height ({dimension_unit})',
+                title=dict(text=f'Height ({dimension_unit})', font=dict(color='#94a3b8')),
                 backgroundcolor="rgba(0,0,0,0)",
                 gridcolor="rgba(148, 163, 184, 0.2)",
                 showbackground=True,
-                zerolinecolor="rgba(148, 163, 184, 0.3)",
-                titlefont=dict(color='#94a3b8')
+                zerolinecolor="rgba(148, 163, 184, 0.3)"
             ),
             camera=dict(
                 eye=dict(x=1.5, y=1.5, z=1.3)
@@ -735,10 +732,9 @@ def create_volume_comparison_chart(box_volume, product_volume, unit='cubic inche
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='#e2e8f0'),
         xaxis=dict(
-            title=f'Volume ({unit})',
+            title=dict(text=f'Volume ({unit})', font=dict(color='#94a3b8')),
             gridcolor='rgba(148, 163, 184, 0.2)',
-            zerolinecolor='rgba(148, 163, 184, 0.3)',
-            titlefont=dict(color='#94a3b8')
+            zerolinecolor='rgba(148, 163, 184, 0.3)'
         ),
         yaxis=dict(
             showticklabels=False,
