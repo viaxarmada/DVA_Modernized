@@ -1273,8 +1273,10 @@ with tab1:
                 dimension_unit = st.session_state.pref_dimension_unit
                 result_unit = st.session_state.pref_volume_unit
                 
-                st.session_state.product_weight = weight
-                st.session_state.product_weight_unit = weight_unit
+                # Weight is already in session_state via key="product_weight"
+                # Store the unit separately
+                if 'product_weight_unit' not in st.session_state or st.session_state.product_weight_unit != weight_unit:
+                    st.session_state.product_weight_unit = weight_unit
                 
                 weight_to_mm3 = {
                     'grams': 1000,
