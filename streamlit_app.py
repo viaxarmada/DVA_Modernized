@@ -110,31 +110,106 @@ st.markdown("""
     
     .stTabs [data-baseweb="tab"] {
         height: 48px;
-        background: transparent;
+        background: rgba(30, 41, 59, 0.4);  /* More visible inactive state */
         border-radius: 12px;
         padding: 12px 28px;
-        color: #64748b;
+        color: #94a3b8;  /* Brighter text for better visibility */
         font-weight: 600;
         font-size: 14px;
         letter-spacing: 0.02em;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid transparent;
+        border: 1px solid rgba(148, 163, 184, 0.2);  /* Visible border */
         position: relative;
     }
     
     .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(59, 130, 246, 0.08);
-        color: #94a3b8;
+        background: rgba(59, 130, 246, 0.15);  /* Stronger hover state */
+        color: #cbd5e1;
+        border-color: rgba(59, 130, 246, 0.4);
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
         color: white;
-        border-color: rgba(59, 130, 246, 0.3);
+        border-color: rgba(59, 130, 246, 0.5);
         box-shadow: 
-            0 4px 16px rgba(59, 130, 246, 0.3),
+            0 6px 20px rgba(59, 130, 246, 0.4),
+            0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+        transform: translateY(-2px);
+    }
+    
+    /* Sleeker buttons - shorter height */
+    .stButton>button {
+        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+        color: white;
+        border: none;
+        padding: 8px 20px;  /* Reduced from 14px 36px */
+        font-weight: 700;
+        border-radius: 10px;
+        font-size: 13px;  /* Slightly smaller */
+        letter-spacing: 0.02em;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 
+            0 3px 12px rgba(59, 130, 246, 0.35),
             0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-        transform: translateY(-1px);
+        position: relative;
+        overflow: hidden;
+        min-height: 38px;  /* Sleeker minimum height */
+    }
+    
+    /* Secondary button style (for toggle buttons) */
+    .stButton>button[kind="secondary"] {
+        background: rgba(30, 41, 59, 0.6);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        padding: 8px 20px;
+    }
+    
+    .stButton>button[kind="secondary"]:hover {
+        background: rgba(59, 130, 246, 0.15);
+        border-color: rgba(59, 130, 246, 0.5);
+    }
+    
+    /* Mobile responsiveness - keep buttons and columns side-by-side */
+    @media (max-width: 768px) {
+        /* Force columns to stay side-by-side on mobile */
+        .row-widget.stHorizontalBlock {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+        }
+        
+        /* Keep buttons side-by-side */
+        .stButton {
+            min-width: fit-content;
+            flex-shrink: 0;
+        }
+        
+        .stButton>button {
+            padding: 8px 16px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+        
+        /* Responsive header */
+        h1 {
+            font-size: 1.5rem !important;
+        }
+        
+        /* Tabs stay horizontal */
+        .stTabs [data-baseweb="tab-list"] {
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            min-width: fit-content;
+            padding: 10px 20px;
+            font-size: 13px;
+        }
+        
+        /* Input fields stay side-by-side */
+        .stNumberInput, .stTextInput, .stSelectbox {
+            min-width: 120px;
+        }
     }
     
     /* Precision metric cards with technical aesthetic */
@@ -210,47 +285,7 @@ st.markdown("""
         text-transform: uppercase;
     }
     
-    /* Elegant button design with depth */
-    .stButton>button {
-        background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-        color: white;
-        border: none;
-        padding: 14px 36px;
-        font-weight: 700;
-        border-radius: 12px;
-        font-size: 15px;
-        letter-spacing: 0.02em;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 
-            0 4px 16px rgba(59, 130, 246, 0.4),
-            0 0 0 1px rgba(255, 255, 255, 0.1) inset;
-        position: relative;
-        overflow: hidden;
-    }
-    
-    /* Button glow effect */
-    .stButton>button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s;
-    }
-    
-    .stButton>button:hover::before {
-        left: 100%;
-    }
-    
-    .stButton>button:hover {
-        background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
-        box-shadow: 
-            0 8px 24px rgba(59, 130, 246, 0.5),
-            0 0 0 1px rgba(255, 255, 255, 0.15) inset;
-        transform: translateY(-2px);
-    }
+    /* Button hover effects */
     
     .stButton>button:active {
         transform: translateY(0);
@@ -674,7 +709,7 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='#e2e8f0'),
-        height=400,
+        height=600,  # Taller for better screen fill
         margin=dict(l=0, r=0, t=30, b=0),
         showlegend=False,
         title=dict(
@@ -811,6 +846,121 @@ def create_donut_chart(efficiency_percentage):
     
     return fig
 
+def create_2d_box_illustration(length, width, height, unit='inches'):
+    """Create dynamic 2D box illustration with dimension callouts"""
+    if length <= 0 or width <= 0 or height <= 0:
+        return """
+        <div style="text-align: center; padding: 100px 0; color: #64748b;">
+            <p style="font-size: 1.2rem;">📦</p>
+            <p>Enter dimensions to see preview</p>
+        </div>
+        """
+    
+    # Scale for visualization (keeping proportions)
+    max_dim = max(length, width, height)
+    scale = 300 / max_dim
+    
+    l_scaled = length * scale
+    w_scaled = width * scale * 0.6  # Perspective effect
+    h_scaled = height * scale
+    
+    # SVG dimensions
+    svg_width = 500
+    svg_height = 450
+    
+    # Center the box
+    offset_x = (svg_width - l_scaled - w_scaled) / 2
+    offset_y = (svg_height - h_scaled) / 2 + 50
+    
+    # Create SVG
+    svg = f"""
+    <svg width="{svg_width}" height="{svg_height}" xmlns="http://www.w3.org/2000/svg" style="background: transparent;">
+        <defs>
+            <linearGradient id="boxGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:0.3" />
+                <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:0.5" />
+            </linearGradient>
+            <filter id="glow">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                </feMerge>
+            </filter>
+        </defs>
+        
+        <!-- Back face -->
+        <polygon points="{offset_x + w_scaled},{offset_y} {offset_x + w_scaled + l_scaled},{offset_y} {offset_x + w_scaled + l_scaled},{offset_y + h_scaled} {offset_x + w_scaled},{offset_y + h_scaled}"
+                 fill="url(#boxGradient)" stroke="#60a5fa" stroke-width="2" opacity="0.4"/>
+        
+        <!-- Left face -->
+        <polygon points="{offset_x},{offset_y + w_scaled * 0.5} {offset_x + w_scaled},{offset_y} {offset_x + w_scaled},{offset_y + h_scaled} {offset_x},{offset_y + h_scaled + w_scaled * 0.5}"
+                 fill="url(#boxGradient)" stroke="#60a5fa" stroke-width="2" opacity="0.6"/>
+        
+        <!-- Front face -->
+        <polygon points="{offset_x},{offset_y + w_scaled * 0.5} {offset_x + l_scaled},{offset_y + w_scaled * 0.5} {offset_x + l_scaled},{offset_y + h_scaled + w_scaled * 0.5} {offset_x},{offset_y + h_scaled + w_scaled * 0.5}"
+                 fill="url(#boxGradient)" stroke="#60a5fa" stroke-width="3" filter="url(#glow)"/>
+        
+        <!-- Top face -->
+        <polygon points="{offset_x},{offset_y + w_scaled * 0.5} {offset_x + w_scaled},{offset_y} {offset_x + w_scaled + l_scaled},{offset_y} {offset_x + l_scaled},{offset_y + w_scaled * 0.5}"
+                 fill="url(#boxGradient)" stroke="#60a5fa" stroke-width="2" opacity="0.7"/>
+        
+        <!-- Length dimension line (bottom) -->
+        <line x1="{offset_x}" y1="{offset_y + h_scaled + w_scaled * 0.5 + 30}" 
+              x2="{offset_x + l_scaled}" y2="{offset_y + h_scaled + w_scaled * 0.5 + 30}" 
+              stroke="#10b981" stroke-width="2"/>
+        <line x1="{offset_x}" y1="{offset_y + h_scaled + w_scaled * 0.5 + 25}" 
+              x2="{offset_x}" y2="{offset_y + h_scaled + w_scaled * 0.5 + 35}" 
+              stroke="#10b981" stroke-width="2"/>
+        <line x1="{offset_x + l_scaled}" y1="{offset_y + h_scaled + w_scaled * 0.5 + 25}" 
+              x2="{offset_x + l_scaled}" y2="{offset_y + h_scaled + w_scaled * 0.5 + 35}" 
+              stroke="#10b981" stroke-width="2"/>
+        <text x="{offset_x + l_scaled/2}" y="{offset_y + h_scaled + w_scaled * 0.5 + 55}" 
+              fill="#10b981" font-size="16" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono, monospace">
+            L: {length:.1f} {unit}
+        </text>
+        
+        <!-- Height dimension line (left side) -->
+        <line x1="{offset_x - 30}" y1="{offset_y + w_scaled * 0.5}" 
+              x2="{offset_x - 30}" y2="{offset_y + h_scaled + w_scaled * 0.5}" 
+              stroke="#f59e0b" stroke-width="2"/>
+        <line x1="{offset_x - 35}" y1="{offset_y + w_scaled * 0.5}" 
+              x2="{offset_x - 25}" y2="{offset_y + w_scaled * 0.5}" 
+              stroke="#f59e0b" stroke-width="2"/>
+        <line x1="{offset_x - 35}" y1="{offset_y + h_scaled + w_scaled * 0.5}" 
+              x2="{offset_x - 25}" y2="{offset_y + h_scaled + w_scaled * 0.5}" 
+              stroke="#f59e0b" stroke-width="2"/>
+        <text x="{offset_x - 45}" y="{offset_y + h_scaled/2 + w_scaled * 0.5}" 
+              fill="#f59e0b" font-size="16" font-weight="bold" text-anchor="end" font-family="JetBrains Mono, monospace"
+              transform="rotate(-90 {offset_x - 45} {offset_y + h_scaled/2 + w_scaled * 0.5})">
+            H: {height:.1f} {unit}
+        </text>
+        
+        <!-- Width dimension line (top right) -->
+        <line x1="{offset_x + l_scaled}" y1="{offset_y + w_scaled * 0.5 - 30}" 
+              x2="{offset_x + l_scaled + w_scaled}" y2="{offset_y - 30}" 
+              stroke="#8b5cf6" stroke-width="2"/>
+        <line x1="{offset_x + l_scaled - 5}" y1="{offset_y + w_scaled * 0.5 - 25}" 
+              x2="{offset_x + l_scaled + 5}" y2="{offset_y + w_scaled * 0.5 - 35}" 
+              stroke="#8b5cf6" stroke-width="2"/>
+        <line x1="{offset_x + l_scaled + w_scaled - 5}" y1="{offset_y - 25}" 
+              x2="{offset_x + l_scaled + w_scaled + 5}" y2="{offset_y - 35}" 
+              stroke="#8b5cf6" stroke-width="2"/>
+        <text x="{offset_x + l_scaled + w_scaled/2 + 20}" y="{offset_y + w_scaled * 0.25 - 35}" 
+              fill="#8b5cf6" font-size="16" font-weight="bold" text-anchor="middle" font-family="JetBrains Mono, monospace">
+            W: {width:.1f} {unit}
+        </text>
+        
+        <!-- Title -->
+        <text x="{svg_width/2}" y="30" 
+              fill="#e2e8f0" font-size="18" font-weight="bold" text-anchor="middle">
+            📦 Box Dimensions Preview
+        </text>
+    </svg>
+    """
+    
+    return svg
+
 def ensure_valid_json_file(filename, default_data=None):
     """Ensure JSON file exists and is valid"""
     if default_data is None:
@@ -853,19 +1003,27 @@ if 'samples' not in st.session_state:
 if 'show_success' not in st.session_state:
     st.session_state.show_success = False
 
-# Header
-col1, col2 = st.columns([1, 4])
+# Header - Mobile-friendly horizontal layout
+header_col1, header_col2 = st.columns([1, 6])
 
-with col1:
+with header_col1:
     # Display logo if available
     if os.path.exists('dva_logo.png'):
-        st.image('dva_logo.png', width=120)
+        st.image('dva_logo.png', width=100)
     else:
         st.markdown("# 🔬")
 
-with col2:
-    st.markdown("# Displacement Volume Analyzer")
-    st.markdown("*Based on Archimedes' Principle - Water density at 4°C (1 g/mL)*")
+with header_col2:
+    st.markdown("""
+    <div style="display: flex; align-items: center; height: 100px;">
+        <div>
+            <h1 style="margin: 0; padding: 0; line-height: 1.2;">Displacement Volume Analyzer</h1>
+            <p style="margin: 0; padding: 0; font-size: 0.75rem; color: #94a3b8; font-style: italic;">
+                Archimedes' Principle | Water at 4°C (1 g/mL)
+            </p>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -1097,7 +1255,7 @@ with tab1:
             st.rerun()
     
     with top_col2:
-        if st.button("⚙️ Unit Preferences" if not st.session_state.show_unit_prefs else "⚙️ Hide Units", 
+        if st.button("⚙️ Units" if not st.session_state.show_unit_prefs else "⚙️ Hide", 
                      use_container_width=True,
                      type="secondary",
                      key="toggle_unit_prefs"):
@@ -1112,11 +1270,11 @@ with tab1:
             col_new, col_save = st.columns([1, 1])
             
             with col_new:
-                if st.button("🆕 New Project", use_container_width=True, key="new_proj_btn"):
+                if st.button("🆕 New", use_container_width=True, key="new_proj_btn"):
                     create_new_project()
             
             with col_save:
-                if st.button("💾 Save Project", use_container_width=True, key="save_proj_btn"):
+                if st.button("💾 Save", use_container_width=True, key="save_proj_btn"):
                     if save_current_project():
                         st.success("✅ Project saved successfully!")
                         time.sleep(1)
@@ -1307,15 +1465,15 @@ with tab1:
                 
                 st.info(f"ℹ️ Displaying in **{result_unit}** (set in Unit Preferences)")
         
-        st.markdown("### Conversion Reference")
-        st.markdown("""
-        **1 US Fluid Ounce equals:**
-        * 29,573.53 mm³
-        * 29.57 cm³
-        * 1.804 in³
-        
-        *Based on water density at 4°C (1 g/mL = 1 cm³/g)*
-        """)
+        # Conversion Reference - Compact
+        with st.expander("📐 Conversion Reference", expanded=False):
+            st.markdown("""
+            <div style="font-size: 0.85rem;">
+            <strong>1 US Fluid Ounce =</strong><br>
+            29,574 mm³ | 29.57 cm³ | 1.804 in³<br>
+            <em style="font-size: 0.75rem; color: #64748b;">Water at 4°C (1 g/mL)</em>
+            </div>
+            """, unsafe_allow_html=True)
         
         if 'primary_volume_mm3' in st.session_state and st.session_state.primary_volume_mm3 > 0:
             st.markdown("---")
@@ -1391,7 +1549,7 @@ with tab1:
         
         st.markdown("### Box Dimensions Calculator")
         
-        col1, col2 = st.columns([2, 3])
+        col1, col2 = st.columns([1, 1])
         
         with col1:
             st.markdown("#### Input Box Dimensions")
@@ -1422,7 +1580,7 @@ with tab1:
                 key="box_height"
             )
             
-            if st.button("🧮 Calculate Box Volume", use_container_width=True, type="primary"):
+            if st.button("🧮 Calculate", use_container_width=True, type="primary"):
                 if box_length > 0 and box_width > 0 and box_height > 0:
                     dim_to_mm = {
                         'mm': 1,
@@ -1444,83 +1602,95 @@ with tab1:
                     st.error("⚠️ Please enter all dimensions")
         
         with col2:
-            st.markdown("#### Box Volume Results")
+            st.markdown("#### Live Preview")
+            # Dynamic 2D box illustration
+            box_svg = create_2d_box_illustration(
+                st.session_state.get('box_length', 0),
+                st.session_state.get('box_width', 0),
+                st.session_state.get('box_height', 0),
+                dimension_unit
+            )
+            st.markdown(box_svg, unsafe_allow_html=True)
+        
+        # Box Volume Results (below the preview)
+        if 'box_volume_mm3' in st.session_state:
+            st.markdown("---")
+            st.markdown("### Box Volume Results")
             
-            if 'box_volume_mm3' in st.session_state:
-                result_unit = st.session_state.pref_volume_unit
-                mm3_to_result = {
-                    'cubic mm': 1,
-                    'cubic cm': 0.001,
-                    'cubic inches': 0.000061023744,
-                    'cubic feet': 0.000000035315
-                }
+            result_unit = st.session_state.pref_volume_unit
+            mm3_to_result = {
+                'cubic mm': 1,
+                'cubic cm': 0.001,
+                'cubic inches': 0.000061023744,
+                'cubic feet': 0.000000035315
+            }
+            
+            box_result = st.session_state.box_volume_mm3 * mm3_to_result[result_unit]
+            
+            st.markdown(f"""
+            <div class="metric-card">
+                <div style="color: #10b981; font-weight: bold; font-size: 1.2rem;">Box Volume</div>
+                <div class="result-value">{box_result:,.2f}</div>
+                <div class="result-unit">{result_unit}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.info(f"ℹ️ Results in **{result_unit}** (set in Unit Preferences)")
+            
+            if 'primary_volume_mm3' in st.session_state:
+                st.markdown("---")
+                st.markdown("#### Remaining Volume Analysis")
                 
-                box_result = st.session_state.box_volume_mm3 * mm3_to_result[result_unit]
+                product_volume_to_use = st.session_state.get('total_product_volume_mm3', 
+                                                              st.session_state['primary_volume_mm3'])
                 
-                st.markdown(f"""
-                <div class="metric-card">
-                    <div style="color: #10b981; font-weight: bold; font-size: 1.2rem;">Box Volume</div>
-                    <div class="result-value">{box_result:,.2f}</div>
-                    <div class="result-unit">{result_unit}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                box_volume_mm3 = st.session_state['box_volume_mm3']
+                remaining_volume_mm3 = box_volume_mm3 - product_volume_to_use
                 
-                st.info(f"ℹ️ Results in **{result_unit}** (set in Unit Preferences)")
+                remaining_unit = st.session_state.pref_volume_unit
                 
-                if 'primary_volume_mm3' in st.session_state:
-                    st.markdown("---")
-                    st.markdown("#### Remaining Volume Analysis")
-                    
-                    product_volume_to_use = st.session_state.get('total_product_volume_mm3', 
-                                                                  st.session_state['primary_volume_mm3'])
-                    
-                    box_volume_mm3 = st.session_state['box_volume_mm3']
-                    remaining_volume_mm3 = box_volume_mm3 - product_volume_to_use
-                    
-                    remaining_unit = st.session_state.pref_volume_unit
-                    
-                    box_volume_result = box_volume_mm3 * mm3_to_result[remaining_unit]
-                    product_volume_result = product_volume_to_use * mm3_to_result[remaining_unit]
-                    remaining_volume_result = remaining_volume_mm3 * mm3_to_result[remaining_unit]
-                    
-                    quantity = st.session_state.get('product_quantity', 1)
-                    product_label = f"Product Volume (×{quantity})" if quantity > 1 else "Product Volume"
-                    
-                    vol_col1, vol_col2, vol_col3 = st.columns(3)
-                    
-                    with vol_col1:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div style="color: #10b981; font-weight: bold;">Box Volume</div>
-                            <div style="font-size: 1.8rem; font-weight: bold; color: #10b981; margin: 10px 0;">
-                                {box_volume_result:,.2f}
-                            </div>
-                            <div class="result-unit">{remaining_unit}</div>
+                box_volume_result = box_volume_mm3 * mm3_to_result[remaining_unit]
+                product_volume_result = product_volume_to_use * mm3_to_result[remaining_unit]
+                remaining_volume_result = remaining_volume_mm3 * mm3_to_result[remaining_unit]
+                
+                quantity = st.session_state.get('product_quantity', 1)
+                product_label = f"Product Volume (×{quantity})" if quantity > 1 else "Product Volume"
+                
+                vol_col1, vol_col2, vol_col3 = st.columns(3)
+                
+                with vol_col1:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color: #10b981; font-weight: bold;">Box Volume</div>
+                        <div style="font-size: 1.8rem; font-weight: bold; color: #10b981; margin: 10px 0;">
+                            {box_volume_result:,.2f}
                         </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with vol_col2:
-                        st.markdown(f"""
-                        <div class="metric-card">
-                            <div style="color: #3b82f6; font-weight: bold;">{product_label}</div>
-                            <div style="font-size: 1.8rem; font-weight: bold; color: #3b82f6; margin: 10px 0;">
-                                {product_volume_result:,.2f}
-                            </div>
-                            <div class="result-unit">{remaining_unit}</div>
+                        <div class="result-unit">{remaining_unit}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with vol_col2:
+                    st.markdown(f"""
+                    <div class="metric-card">
+                        <div style="color: #3b82f6; font-weight: bold;">{product_label}</div>
+                        <div style="font-size: 1.8rem; font-weight: bold; color: #3b82f6; margin: 10px 0;">
+                            {product_volume_result:,.2f}
                         </div>
-                        """, unsafe_allow_html=True)
-                    
-                    with vol_col3:
-                        remaining_color = "#10b981" if remaining_volume_result >= 0 else "#ef4444"
-                        st.markdown(f"""
-                        <div class="metric-card" style="border-color: {remaining_color};">
-                            <div style="color: {remaining_color}; font-weight: bold;">Remaining Volume</div>
-                            <div style="font-size: 1.8rem; font-weight: bold; color: {remaining_color}; margin: 10px 0;">
-                                {remaining_volume_result:,.2f}
-                            </div>
-                            <div class="result-unit">{remaining_unit}</div>
+                        <div class="result-unit">{remaining_unit}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with vol_col3:
+                    remaining_color = "#10b981" if remaining_volume_result >= 0 else "#ef4444"
+                    st.markdown(f"""
+                    <div class="metric-card" style="border-color: {remaining_color};">
+                        <div style="color: {remaining_color}; font-weight: bold;">Remaining Volume</div>
+                        <div style="font-size: 1.8rem; font-weight: bold; color: {remaining_color}; margin: 10px 0;">
+                            {remaining_volume_result:,.2f}
                         </div>
-                        """, unsafe_allow_html=True)
+                        <div class="result-unit">{remaining_unit}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
         
         st.markdown("---")
         nav_col1, nav_col2, nav_spacer = st.columns([1, 1, 2])
