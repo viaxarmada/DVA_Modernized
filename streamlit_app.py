@@ -1568,21 +1568,28 @@ with tab1:
                 """, unsafe_allow_html=True)
             
             with total_col2:
-                # Centered × symbol aligned with boxes - moved higher
+                # Create a 70px container that holds both × and input
+                st.markdown('<div style="height: 70px; overflow: hidden;">', unsafe_allow_html=True)
+                
+                # × symbol takes top half
                 st.markdown("""
-                <div style="height: 70px; display: flex; align-items: center; justify-content: center;">
-                    <span style="font-size: 1.5rem; color: #64748b; font-weight: bold;">×</span>
+                <div style="height: 30px; display: flex; align-items: center; justify-content: center; margin-bottom: -5px;">
+                    <span style="font-size: 1.3rem; color: #64748b; font-weight: bold;">×</span>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Quantity input in bottom half
                 quantity = st.number_input(
                     "Qty",
                     min_value=1,
-                    max_value=999,  # 3 digit maximum
+                    max_value=999,
                     step=1,
                     value=1,
                     key="product_quantity",
                     label_visibility="collapsed"
                 )
+                
+                st.markdown('</div>', unsafe_allow_html=True)
             
             with total_col3:
                 total_volume = single_volume * quantity
