@@ -1075,109 +1075,169 @@ tab1, tab2, tab3, tab4 = st.tabs(["🔬 Analyzer", "📁 Project Results", "📋
 
 # TAB 1: Analyzer
 with tab1:
-    # Project Info Section
-    st.markdown("## Project Information")
+    # ========== INITIALIZE NAVIGATION STATE ==========
+    if 'analyzer_section' not in st.session_state:
+        st.session_state.analyzer_section = 'primary'  # primary, secondary, analysis
     
-    col_new, col_save = st.columns([1, 1])
+    if 'show_project_info' not in st.session_state:
+        st.session_state.show_project_info = False
     
-    with col_new:
-        if st.button("🆕 New Project", use_container_width=True):
-            create_new_project()
+    if 'show_unit_prefs' not in st.session_state:
+        st.session_state.show_unit_prefs = False
     
-    with col_save:
-        if st.button("💾 Save Project", use_container_width=True):
-            if save_current_project():
-                st.success("✅ Project saved successfully!")
-                time.sleep(1)
-                st.rerun()
+    # ========== TOP NAVIGATION BUTTONS ==========
+    top_col1, top_col2, top_spacer = st.columns([1, 1, 2])
     
-    # CRITICAL: Always verify project number before displaying
-    # This runs every time the tab loads
-    if st.session_state.current_project_id is None:
-        # This is a new project - always get next sequential number
-        next_num = get_next_project_number()
-        st.session_state.current_project_number = next_num
-        st.session_state.project_counter = next_num
+    with top_col1:
+        if st.button("📋 Project Info" if not st.session_state.show_project_info else "📋 Hide Info", 
+                     use_container_width=True, 
+                     type="secondary",
+                     key="toggle_project_info"):
+            st.session_state.show_project_info = not st.session_state.show_project_info
+            st.rerun()
+    
+    with top_col2:
+        if st.button("⚙️ Unit Preferences" if not st.session_state.show_unit_prefs else "⚙️ Hide Units", 
+                     use_container_width=True,
+                     type="secondary",
+                     key="toggle_unit_prefs"):
+            st.session_state.show_unit_prefs = not st.session_state.show_unit_prefs
+            st.rerun()
+    
+    # ========== COLLAPSIBLE PROJECT INFORMATION ==========
+    if st.session_state.show_project_info:
+        with st.container():
+            st.markdown("### 📋 Project Information")
+            
+            col_new, col_save = st.columns([1, 1])
+            
+            with col_new:
+                if st.button("🆕 New Project", use_container_width=True, key="new_proj_btn"):
+                    create_new_project()
+            
+            with col_save:
+                if st.button("💾 Save Project", use_container_width=True, key="save_proj_btn"):
+                    if save_current_project():
+                        st.success("✅ Project saved successfully!")
+                        time.sleep(1)
+                        st.rerun()
+            
+            # Project number verification
+            if st.session_state.current_project_id is None:
+                next_num = get_next_project_number()
+                st.session_state.current_project_number = next_num
+                st.session_state.project_counter = next_num
+                
+                if st.session_state.projects:
+                    existing_nums = [p['project_number'] for p in st.session_state.projects]
+                    st.info(f"ℹ️ Existing projects: {sorted(existing_nums)} | Next: **{next_num}**")
+                else:
+                    st.info(f"ℹ️ No existing projects | Starting at: **{next_num}**")
+            else:
+                st.info(f"✏️ Editing Project #{st.session_state.current_project_id}")
+            
+            # Project info fields
+            col1, col2 = st.columns([1, 1])
+            
+            with col1:
+                project_number_display = st.text_input(
+                    "Project Number",
+                    value=str(st.session_state.current_project_number),
+                    disabled=True,
+                    key="project_number_display"
+                )
+                
+                if 'project_name' not in st.session_state:
+                    st.session_state.project_name = 'New Project'
+                
+                project_name = st.text_input(
+                    "Project Name",
+                    placeholder="Enter project name",
+                    key="project_name"
+                )
+                
+                if 'project_date' not in st.session_state:
+                    st.session_state.project_date = datetime.now().date()
+                
+                st.text_input(
+                    "Date",
+                    value=st.session_state.project_date.strftime('%Y-%m-%d'),
+                    disabled=True,
+                    key="project_date_display"
+                )
+            
+            with col2:
+                if 'designer' not in st.session_state:
+                    st.session_state.designer = 'Designer Name'
+                if 'project_description' not in st.session_state:
+                    st.session_state.project_description = 'Project description here'
+                if 'contact_info' not in st.session_state:
+                    st.session_state.contact_info = 'contact@email.com'
+                
+                designer = st.text_input(
+                    "Designer",
+                    placeholder="Enter designer name",
+                    key="designer"
+                )
+                
+                description = st.text_area(
+                    "Description",
+                    placeholder="Enter project description",
+                    height=100,
+                    key="project_description"
+                )
+                
+                contact = st.text_input(
+                    "Contact Info",
+                    placeholder="Email or phone",
+                    key="contact_info"
+                )
         
-        # Show info about current projects
-        if st.session_state.projects:
-            existing_nums = [p['project_number'] for p in st.session_state.projects]
-            st.info(f"ℹ️ Existing projects: {sorted(existing_nums)} | Next project number: **{next_num}**")
-        else:
-            st.info(f"ℹ️ No existing projects | Starting at: **{next_num}**")
-    else:
-        # Editing existing project
-        st.info(f"✏️ Editing Project #{st.session_state.current_project_id}")
+        st.markdown("---")
     
-    # Project info fields
-    col1, col2 = st.columns([1, 1])
+    # ========== COLLAPSIBLE UNIT PREFERENCES ==========
+    if st.session_state.show_unit_prefs:
+        with st.container():
+            st.markdown("### ⚙️ Unit Preferences")
+            st.markdown("*Set default units for all calculations in this project*")
+            
+            # Initialize unit preferences with Imperial/English defaults
+            if 'pref_dimension_unit' not in st.session_state:
+                st.session_state.pref_dimension_unit = 'inches'
+            if 'pref_weight_unit' not in st.session_state:
+                st.session_state.pref_weight_unit = 'ounces'
+            if 'pref_volume_unit' not in st.session_state:
+                st.session_state.pref_volume_unit = 'cubic inches'
+            
+            pref_col1, pref_col2, pref_col3 = st.columns(3)
+            
+            with pref_col1:
+                dimension_pref = st.selectbox(
+                    "📏 Dimension Unit",
+                    ['inches', 'feet', 'cm', 'mm'],
+                    key="pref_dimension_unit",
+                    help="Default unit for length/width/height measurements"
+                )
+            
+            with pref_col2:
+                weight_pref = st.selectbox(
+                    "⚖️ Weight Unit",
+                    ['ounces', 'pounds', 'grams', 'kilograms'],
+                    key="pref_weight_unit",
+                    help="Default unit for weight measurements"
+                )
+            
+            with pref_col3:
+                volume_pref = st.selectbox(
+                    "📦 Volume Unit",
+                    ['cubic inches', 'cubic feet', 'cubic cm', 'cubic mm'],
+                    key="pref_volume_unit",
+                    help="Default unit for volume display"
+                )
+        
+        st.markdown("---")
     
-    with col1:
-        # Display project number (read-only, already calculated above)
-        project_number_display = st.text_input(
-            "Project Number",
-            value=str(st.session_state.current_project_number),
-            disabled=True,
-            key="project_number_display"
-        )
-        # DO NOT overwrite current_project_number here - it's already set correctly above
-        
-        # Initialize project info if not present
-        if 'project_name' not in st.session_state:
-            st.session_state.project_name = 'New Project'
-        
-        project_name = st.text_input(
-            "Project Name",
-            placeholder="Enter project name",
-            key="project_name"
-        )
-        
-        # Auto-set current date (hidden from user)
-        if 'project_date' not in st.session_state:
-            st.session_state.project_date = datetime.now().date()
-        
-        # Display date (read-only)
-        st.text_input(
-            "Date",
-            value=st.session_state.project_date.strftime('%Y-%m-%d'),
-            disabled=True,
-            key="project_date_display"
-        )
-    
-    with col2:
-        # Initialize fields if not present
-        if 'designer' not in st.session_state:
-            st.session_state.designer = 'Designer Name'
-        if 'project_description' not in st.session_state:
-            st.session_state.project_description = 'Project description here'
-        if 'contact_info' not in st.session_state:
-            st.session_state.contact_info = 'contact@email.com'
-        
-        designer = st.text_input(
-            "Designer",
-            placeholder="Enter designer name",
-            key="designer"
-        )
-        
-        description = st.text_area(
-            "Description",
-            placeholder="Enter project description",
-            height=100,
-            key="project_description"
-        )
-        
-        contact = st.text_input(
-            "Contact Info",
-            placeholder="Email or phone",
-            key="contact_info"
-        )
-    
-    # Unit Preferences Section
-    st.markdown("---")
-    st.markdown("### 🎯 Unit Preferences")
-    st.markdown("*Set default units for all calculations in this project*")
-    
-    # Initialize unit preferences with Imperial/English defaults
+    # Initialize unit preferences (always, even if not showing)
     if 'pref_dimension_unit' not in st.session_state:
         st.session_state.pref_dimension_unit = 'inches'
     if 'pref_weight_unit' not in st.session_state:
@@ -1185,401 +1245,368 @@ with tab1:
     if 'pref_volume_unit' not in st.session_state:
         st.session_state.pref_volume_unit = 'cubic inches'
     
-    pref_col1, pref_col2, pref_col3 = st.columns(3)
+
     
-    with pref_col1:
-        dimension_pref = st.selectbox(
-            "📏 Dimension Unit",
-            ['inches', 'feet', 'cm', 'mm'],
-            key="pref_dimension_unit",
-            help="Default unit for length/width/height measurements"
-        )
     
-    with pref_col2:
-        weight_pref = st.selectbox(
-            "⚖️ Weight Unit",
-            ['ounces', 'pounds', 'grams', 'kilograms'],
-            key="pref_weight_unit",
-            help="Default unit for weight measurements"
-        )
-    
-    with pref_col3:
-        volume_pref = st.selectbox(
-            "📦 Volume Unit",
-            ['cubic inches', 'cubic feet', 'cubic cm', 'cubic mm'],
-            key="pref_volume_unit",
-            help="Default unit for volume display"
-        )
-    
-    st.markdown("---")
-    
-    st.markdown("## Primary Product Volume Calculator")
-    
-    col1, col2 = st.columns([2, 3])
-    
-    with col1:
-        st.markdown("### Input")
+    # SECTION 1: PRIMARY PRODUCT CALCULATOR
+    if st.session_state.analyzer_section == 'primary':
+        st.markdown("## 🔬 Primary Product Volume Calculator")
         
-        # Initialize session state with preferred units
-        if 'primary_weight' not in st.session_state:
-            st.session_state.primary_weight = 100.0
+        col1, col2 = st.columns([2, 3])
         
-        # Set primary unit to match preference
-        st.session_state.primary_unit = st.session_state.pref_weight_unit
+        with col1:
+            st.markdown("### Input")
+            weight_unit = st.session_state.pref_weight_unit
+            weight = st.number_input(
+                f"Weight of Water ({weight_unit})",
+                min_value=0.0,
+                step=0.1,
+                format="%.2f",
+                help=f"Enter weight in {weight_unit}",
+                key="product_weight"
+            )
+            st.info(f"ℹ️ Using **{weight_unit}** (set in Unit Preferences)")
         
-        weight = st.number_input(
-            f"Weight of Water ({st.session_state.pref_weight_unit})",
-            min_value=0.0,
-            step=0.1,
-            format="%.2f",
-            key="primary_weight",
-            help=f"Enter weight in {st.session_state.pref_weight_unit}"
-        )
+        with col2:
+            st.markdown("### Results")
+            if weight > 0:
+                dimension_unit = st.session_state.pref_dimension_unit
+                result_unit = st.session_state.pref_volume_unit
+                
+                st.session_state.product_weight = weight
+                st.session_state.product_weight_unit = weight_unit
+                
+                weight_to_mm3 = {
+                    'grams': 1000,
+                    'ounces': 28316.8466,
+                    'pounds': 453592.37,
+                    'kilograms': 1000000
+                }
+                
+                volume_mm3 = weight * weight_to_mm3[weight_unit]
+                st.session_state.primary_volume_mm3 = volume_mm3
+                
+                mm3_to_display = {
+                    'cubic mm': 1,
+                    'cubic cm': 0.001,
+                    'cubic inches': 0.000061023744,
+                    'cubic feet': 0.000000035315
+                }
+                
+                result_value = volume_mm3 * mm3_to_display[result_unit]
+                
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div style="color: #60a5fa; font-weight: bold; font-size: 1.2rem;">{result_unit.title()}</div>
+                    <div class="result-value">{result_value:.2f}</div>
+                    <div class="result-unit">{result_unit}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.info(f"ℹ️ Displaying in **{result_unit}** (set in Unit Preferences)")
         
-        st.info(f"ℹ️ Using **{st.session_state.pref_weight_unit}** (set in Unit Preferences)")
+        st.markdown("### Conversion Reference")
+        st.markdown("""
+        **1 US Fluid Ounce equals:**
+        * 29,573.53 mm³
+        * 29.57 cm³
+        * 1.804 in³
         
-        calculate_btn = st.button("🔬 Calculate Volume", use_container_width=True)
-    
-    with col2:
-        st.markdown("### Results")
+        *Based on water density at 4°C (1 g/mL = 1 cm³/g)*
+        """)
         
-        if calculate_btn or weight:
-            # Use the preferred weight unit
-            results = calculate_volume(weight, st.session_state.pref_weight_unit)
-            
-            # Store primary volume in session state for later use
-            st.session_state.primary_volume_mm3 = results['mm³']
-            
-            # Use preferred volume unit for display
-            volume_conversions = {
-                'cubic mm': results['mm³'],
-                'cubic cm': results['cm³'],
-                'cubic inches': results['in³'],
-                'cubic feet': results['in³'] * 0.000578704  # Convert in³ to ft³
-            }
-            
-            selected_volume = volume_conversions[st.session_state.pref_volume_unit]
-            
-            # Color coding by unit type
-            unit_display = {
-                'cubic mm': {'color': '#ff6b6b', 'label': 'Cubic Millimeters', 'symbol': 'mm³'},
-                'cubic cm': {'color': '#4ecdc4', 'label': 'Cubic Centimeters', 'symbol': 'cm³'},
-                'cubic inches': {'color': '#95e1d3', 'label': 'Cubic Inches', 'symbol': 'in³'},
-                'cubic feet': {'color': '#a29bfe', 'label': 'Cubic Feet', 'symbol': 'ft³'}
-            }
-            
-            selected = unit_display[st.session_state.pref_volume_unit]
-            
-            # Display single result card with preferred unit
-            st.markdown(f"""
-            <div class="metric-card" style="border-color: {selected['color']};">
-                <div style="color: {selected['color']}; font-weight: bold; font-size: 1.2rem;">{selected['label']}</div>
-                <div class="result-value" style="color: {selected['color']};">{selected_volume:,.2f}</div>
-                <div class="result-unit">{selected['symbol']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.info(f"ℹ️ Displaying in **{st.session_state.pref_volume_unit}** (set in Unit Preferences)")
-            
-            # Conversion reference
-            st.markdown("---")
-            st.markdown("### Conversion Reference")
-            st.info("""
-            **1 US Fluid Ounce** equals:
-            - 29,573.53 mm³
-            - 29.57 cm³  
-            - 1.804 in³
-            
-            *Based on water density at 4°C (1 g/mL = 1 cm³/g)*
-            """)
-            
-            # Total Product Volume Section
+        if 'primary_volume_mm3' in st.session_state and st.session_state.primary_volume_mm3 > 0:
             st.markdown("---")
             st.markdown("### Total Product Volume")
             st.markdown("*Multiply by quantity for multiple units*")
             
-            # Initialize quantity in session state
-            if 'product_quantity' not in st.session_state:
-                st.session_state.product_quantity = 1
-            
             total_col1, total_col2, total_col3 = st.columns([2, 1, 2])
             
             with total_col1:
-                # Display single unit in preferred volume unit
-                single_volume_conversions = {
-                    'cubic mm': results['mm³'],
-                    'cubic cm': results['cm³'],
-                    'cubic inches': results['in³'],
-                    'cubic feet': results['in³'] * 0.000578704
+                result_unit = st.session_state.pref_volume_unit
+                mm3_to_display = {
+                    'cubic mm': 1,
+                    'cubic cm': 0.001,
+                    'cubic inches': 0.000061023744,
+                    'cubic feet': 0.000000035315
                 }
-                
-                single_value = single_volume_conversions[st.session_state.pref_volume_unit]
+                single_volume = st.session_state.primary_volume_mm3 * mm3_to_display[result_unit]
                 
                 st.markdown(f"""
-                <div class="metric-card" style="border-color: #9b59b6;">
-                    <div style="color: #9b59b6; font-weight: bold; font-size: 1rem;">Single Unit Volume</div>
-                    <div style="font-size: 1.8rem; font-weight: bold; color: #9b59b6; margin: 8px 0;">
-                        {single_value:,.2f}
+                <div class="metric-card" style="border-color: #8b5cf6;">
+                    <div style="color: #a78bfa; font-weight: bold;">Single Unit Volume</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: #a78bfa; margin: 10px 0;">
+                        {single_volume:.2f}
                     </div>
-                    <div class="result-unit">{st.session_state.pref_volume_unit}</div>
+                    <div class="result-unit">{result_unit}</div>
                 </div>
                 """, unsafe_allow_html=True)
             
             with total_col2:
-                st.markdown("**×**")
+                st.markdown("<div style='text-align: center; font-size: 2rem; margin-top: 40px;'>×</div>", unsafe_allow_html=True)
                 quantity = st.number_input(
                     "Quantity",
                     min_value=1,
-                    value=st.session_state.product_quantity,
                     step=1,
+                    value=1,
                     key="product_quantity"
                 )
             
             with total_col3:
-                # Calculate total volume
-                total_volume_mm3 = results['mm³'] * quantity
-                
-                # Store in session state for use in secondary packaging
+                total_volume = single_volume * quantity
+                total_volume_mm3 = st.session_state.primary_volume_mm3 * quantity
                 st.session_state.total_product_volume_mm3 = total_volume_mm3
                 
-                # Unit conversion using preferred volume unit
-                total_volume_conversions = {
-                    'cubic mm': total_volume_mm3,
-                    'cubic cm': total_volume_mm3 * 0.001,
-                    'cubic inches': total_volume_mm3 * 0.000061023744,
-                    'cubic feet': total_volume_mm3 * 0.000000035315
-                }
-                
-                total_value = total_volume_conversions[st.session_state.pref_volume_unit]
-                
                 st.markdown(f"""
-                <div class="metric-card" style="border-color: #e74c3c;">
-                    <div style="color: #e74c3c; font-weight: bold; font-size: 1rem;">Total Volume</div>
-                    <div style="font-size: 1.8rem; font-weight: bold; color: #e74c3c; margin: 8px 0;">
-                        {total_value:,.2f}
+                <div class="metric-card" style="border-color: #ef4444;">
+                    <div style="color: #f87171; font-weight: bold;">Total Volume</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: #f87171; margin: 10px 0;">
+                        {total_volume:.2f}
                     </div>
-                    <div class="result-unit">{st.session_state.pref_volume_unit}</div>
+                    <div class="result-unit">{result_unit}</div>
                 </div>
                 """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        nav_col1, nav_col2, nav_spacer = st.columns([1, 1, 2])
+        
+        with nav_col1:
+            if st.button("📦 Secondary Packaging →", use_container_width=True, type="primary", key="to_secondary"):
+                st.session_state.analyzer_section = 'secondary'
+                st.rerun()
+        
+        with nav_col2:
+            if st.button("📊 Volume Analysis →", use_container_width=True, type="primary", key="to_analysis_from_primary"):
+                if 'primary_volume_mm3' in st.session_state and 'box_volume_mm3' in st.session_state:
+                    st.session_state.analyzer_section = 'analysis'
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Please calculate box volume first")
     
-    # Secondary Packaging Section
-    st.markdown("---")
-    st.markdown("## Secondary Packaging")
-    st.markdown("### Box Dimensions Calculator")
-    
-    col1, col2 = st.columns([2, 3])
-    
-    with col1:
-        st.markdown("### Input Box Dimensions")
+    # SECTION 2: SECONDARY PACKAGING
+    elif st.session_state.analyzer_section == 'secondary':
+        st.markdown("## 📦 Secondary Packaging Calculator")
         
-        # Initialize session state if not present
-        if 'box_length' not in st.session_state:
-            st.session_state.box_length = 10.0
-        if 'box_width' not in st.session_state:
-            st.session_state.box_width = 10.0
-        if 'box_height' not in st.session_state:
-            st.session_state.box_height = 10.0
+        st.markdown("### Box Dimensions Calculator")
         
-        # Use preferred dimension unit
-        st.session_state.dimension_unit = st.session_state.pref_dimension_unit
-        st.session_state.box_result_unit = st.session_state.pref_volume_unit
+        col1, col2 = st.columns([2, 3])
         
-        # Dimension inputs with preferred unit
-        st.markdown(f"*All dimensions in **{st.session_state.pref_dimension_unit}***")
-        
-        box_length = st.number_input(
-            f"Length ({st.session_state.pref_dimension_unit})",
-            min_value=0.0,
-            step=0.1,
-            format="%.2f",
-            key="box_length"
-        )
-        
-        box_width = st.number_input(
-            f"Width ({st.session_state.pref_dimension_unit})",
-            min_value=0.0,
-            step=0.1,
-            format="%.2f",
-            key="box_width"
-        )
-        
-        box_height = st.number_input(
-            f"Height ({st.session_state.pref_dimension_unit})",
-            min_value=0.0,
-            step=0.1,
-            format="%.2f",
-            key="box_height"
-        )
-        
-        st.info(f"ℹ️ Using **{st.session_state.pref_dimension_unit}** for dimensions\nResults in **{st.session_state.pref_volume_unit}**")
-        
-        calc_box_btn = st.button("📦 Calculate Box Volume", use_container_width=True)
-    
-    with col2:
-        st.markdown("### Box Volume Results")
-        
-        if calc_box_btn or (box_length and box_width and box_height):
-            # Convert all dimensions to mm first (base unit)
-            dimension_to_mm = {
-                "mm": 1,
-                "cm": 10,
-                "inches": 25.4,
-                "feet": 304.8
-            }
-            
-            # Use the preferred units from session state
+        with col1:
+            st.markdown("#### Input Box Dimensions")
             dimension_unit = st.session_state.pref_dimension_unit
-            result_unit = st.session_state.pref_volume_unit
+            st.info(f"ℹ️ All dimensions in **{dimension_unit}**")
             
-            # Calculate volume in mm³
-            length_mm = box_length * dimension_to_mm[dimension_unit]
-            width_mm = box_width * dimension_to_mm[dimension_unit]
-            height_mm = box_height * dimension_to_mm[dimension_unit]
+            box_length = st.number_input(
+                f"Length ({dimension_unit})",
+                min_value=0.0,
+                step=0.1,
+                format="%.2f",
+                key="box_length"
+            )
             
-            box_volume_mm3 = length_mm * width_mm * height_mm
+            box_width = st.number_input(
+                f"Width ({dimension_unit})",
+                min_value=0.0,
+                step=0.1,
+                format="%.2f",
+                key="box_width"
+            )
             
-            # Convert to requested unit
-            mm3_to_result = {
-                "cubic mm": 1,
-                "cubic cm": 0.001,
-                "cubic inches": 0.000061023744,
-                "cubic feet": 0.000000035315
+            box_height = st.number_input(
+                f"Height ({dimension_unit})",
+                min_value=0.0,
+                step=0.1,
+                format="%.2f",
+                key="box_height"
+            )
+            
+            if st.button("🧮 Calculate Box Volume", use_container_width=True, type="primary"):
+                if box_length > 0 and box_width > 0 and box_height > 0:
+                    dim_to_mm = {
+                        'mm': 1,
+                        'cm': 10,
+                        'inches': 25.4,
+                        'feet': 304.8
+                    }
+                    
+                    length_mm = box_length * dim_to_mm[dimension_unit]
+                    width_mm = box_width * dim_to_mm[dimension_unit]
+                    height_mm = box_height * dim_to_mm[dimension_unit]
+                    
+                    box_volume_mm3 = length_mm * width_mm * height_mm
+                    st.session_state.box_volume_mm3 = box_volume_mm3
+                    
+                    st.success("✅ Box volume calculated!")
+                    st.rerun()
+                else:
+                    st.error("⚠️ Please enter all dimensions")
+        
+        with col2:
+            st.markdown("#### Box Volume Results")
+            
+            if 'box_volume_mm3' in st.session_state:
+                result_unit = st.session_state.pref_volume_unit
+                mm3_to_result = {
+                    'cubic mm': 1,
+                    'cubic cm': 0.001,
+                    'cubic inches': 0.000061023744,
+                    'cubic feet': 0.000000035315
+                }
+                
+                box_result = st.session_state.box_volume_mm3 * mm3_to_result[result_unit]
+                
+                st.markdown(f"""
+                <div class="metric-card">
+                    <div style="color: #10b981; font-weight: bold; font-size: 1.2rem;">Box Volume</div>
+                    <div class="result-value">{box_result:,.2f}</div>
+                    <div class="result-unit">{result_unit}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.info(f"ℹ️ Results in **{result_unit}** (set in Unit Preferences)")
+                
+                if 'primary_volume_mm3' in st.session_state:
+                    st.markdown("---")
+                    st.markdown("#### Remaining Volume Analysis")
+                    
+                    product_volume_to_use = st.session_state.get('total_product_volume_mm3', 
+                                                                  st.session_state['primary_volume_mm3'])
+                    
+                    box_volume_mm3 = st.session_state['box_volume_mm3']
+                    remaining_volume_mm3 = box_volume_mm3 - product_volume_to_use
+                    
+                    remaining_unit = st.session_state.pref_volume_unit
+                    
+                    box_volume_result = box_volume_mm3 * mm3_to_result[remaining_unit]
+                    product_volume_result = product_volume_to_use * mm3_to_result[remaining_unit]
+                    remaining_volume_result = remaining_volume_mm3 * mm3_to_result[remaining_unit]
+                    
+                    quantity = st.session_state.get('product_quantity', 1)
+                    product_label = f"Product Volume (×{quantity})" if quantity > 1 else "Product Volume"
+                    
+                    vol_col1, vol_col2, vol_col3 = st.columns(3)
+                    
+                    with vol_col1:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color: #10b981; font-weight: bold;">Box Volume</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; color: #10b981; margin: 10px 0;">
+                                {box_volume_result:,.2f}
+                            </div>
+                            <div class="result-unit">{remaining_unit}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with vol_col2:
+                        st.markdown(f"""
+                        <div class="metric-card">
+                            <div style="color: #3b82f6; font-weight: bold;">{product_label}</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; color: #3b82f6; margin: 10px 0;">
+                                {product_volume_result:,.2f}
+                            </div>
+                            <div class="result-unit">{remaining_unit}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                    
+                    with vol_col3:
+                        remaining_color = "#10b981" if remaining_volume_result >= 0 else "#ef4444"
+                        st.markdown(f"""
+                        <div class="metric-card" style="border-color: {remaining_color};">
+                            <div style="color: {remaining_color}; font-weight: bold;">Remaining Volume</div>
+                            <div style="font-size: 1.8rem; font-weight: bold; color: {remaining_color}; margin: 10px 0;">
+                                {remaining_volume_result:,.2f}
+                            </div>
+                            <div class="result-unit">{remaining_unit}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        nav_col1, nav_col2, nav_spacer = st.columns([1, 1, 2])
+        
+        with nav_col1:
+            if st.button("← Back to Primary", use_container_width=True, key="back_to_primary"):
+                st.session_state.analyzer_section = 'primary'
+                st.rerun()
+        
+        with nav_col2:
+            if st.button("📊 Volume Analysis →", use_container_width=True, type="primary", key="to_analysis_from_secondary"):
+                if 'box_volume_mm3' in st.session_state:
+                    st.session_state.analyzer_section = 'analysis'
+                    st.rerun()
+                else:
+                    st.warning("⚠️ Please calculate box volume first")
+    
+    # SECTION 3: VOLUME ANALYSIS (FULL SCREEN VISUALIZATIONS!)
+    elif st.session_state.analyzer_section == 'analysis':
+        st.markdown("## 📊 Volume Efficiency Analysis")
+        
+        if 'primary_volume_mm3' not in st.session_state or 'box_volume_mm3' not in st.session_state:
+            st.warning("⚠️ Please calculate primary volume and box volume first")
+            
+            if st.button("← Back to Primary", use_container_width=True):
+                st.session_state.analyzer_section = 'primary'
+                st.rerun()
+        else:
+            product_volume_to_use = st.session_state.get('total_product_volume_mm3', 
+                                                          st.session_state['primary_volume_mm3'])
+            box_volume_mm3 = st.session_state['box_volume_mm3']
+            volume_efficiency_percentage = (product_volume_to_use / box_volume_mm3 * 100) if box_volume_mm3 > 0 else 0
+            
+            # ROW 1: Gauge and Donut (LARGE, Side by Side)
+            viz_col1, viz_col2 = st.columns(2)
+            
+            with viz_col1:
+                gauge_fig = create_efficiency_gauge(volume_efficiency_percentage)
+                st.plotly_chart(gauge_fig, use_container_width=True, key="efficiency_gauge_fullscreen")
+            
+            with viz_col2:
+                donut_fig = create_donut_chart(volume_efficiency_percentage)
+                st.plotly_chart(donut_fig, use_container_width=True, key="space_donut_fullscreen")
+            
+            # ROW 2: Volume Comparison Bar (FULL WIDTH)
+            st.markdown("### 📦 Volume Breakdown")
+            
+            remaining_unit = st.session_state.pref_volume_unit
+            mm3_to_remaining = {
+                'cubic mm': 1,
+                'cubic cm': 0.001,
+                'cubic inches': 0.000061023744,
+                'cubic feet': 0.000000035315
             }
             
-            box_volume_result = box_volume_mm3 * mm3_to_result[result_unit]
+            comparison_fig = create_volume_comparison_chart(
+                box_volume_mm3 * mm3_to_remaining[remaining_unit],
+                product_volume_to_use * mm3_to_remaining[remaining_unit],
+                remaining_unit
+            )
+            st.plotly_chart(comparison_fig, use_container_width=True, key="volume_comparison_fullscreen")
             
-            # Store box volume in session state
-            st.session_state.box_volume_mm3 = box_volume_mm3
+            # ROW 3: 3D Box Preview (FULL WIDTH, LARGE)
+            if all(k in st.session_state for k in ['box_length', 'box_width', 'box_height']):
+                st.markdown("### 🎁 3D Box Preview")
+                
+                box_3d_fig = create_3d_box_visualization(
+                    st.session_state['box_length'],
+                    st.session_state['box_width'],
+                    st.session_state['box_height'],
+                    volume_efficiency_percentage,
+                    st.session_state.pref_dimension_unit
+                )
+                st.plotly_chart(box_3d_fig, use_container_width=True, key="box_3d_fullscreen")
             
-            # Display box volume
-            st.markdown(f"""
-            <div class="metric-card">
-                <div style="color: #ffa726; font-weight: bold; font-size: 1.1rem;">Box Volume</div>
-                <div class="result-value" style="color: #ffa726;">{box_volume_result:,.2f}</div>
-                <div class="result-unit">{result_unit}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            remaining_volume_result = (box_volume_mm3 - product_volume_to_use) * mm3_to_remaining[remaining_unit]
+            
+            if remaining_volume_result < 0:
+                st.error("⚠️ Warning: Product volume exceeds box capacity!")
+            else:
+                st.success(f"✅ Box has sufficient space with {remaining_volume_result:,.2f} {remaining_unit} remaining")
             
             st.markdown("---")
-            st.markdown("### Remaining Volume Analysis")
-            
-            # Use total product volume if available, otherwise use single unit volume
-            product_volume_to_use = st.session_state.get('total_product_volume_mm3', st.session_state.get('primary_volume_mm3', 0))
-            
-            # Calculate remaining volume if product volume exists
-            if product_volume_to_use > 0:
-                remaining_volume_mm3 = box_volume_mm3 - product_volume_to_use
-                
-                remaining_unit = st.selectbox(
-                    "Remaining Volume Unit",
-                    ["cubic cm", "cubic mm", "cubic inches", "cubic feet"],
-                    index=0,
-                    key="remaining_unit"
-                )
-                
-                # Conversion factors from mm³
-                mm3_to_remaining = {
-                    "cubic mm": 1,
-                    "cubic cm": 0.001,
-                    "cubic inches": 0.000061023744,
-                    "cubic feet": 0.000000035315
-                }
-                
-                remaining_volume_result = remaining_volume_mm3 * mm3_to_remaining[remaining_unit]
-                
-                # Calculate Volume Efficiency Percentage (Higher is better - less waste)
-                if box_volume_mm3 > 0:
-                    volume_efficiency_percentage = (product_volume_to_use / box_volume_mm3) * 100
-                    remaining_space_percentage = (remaining_volume_mm3 / box_volume_mm3) * 100
-                else:
-                    volume_efficiency_percentage = 0
-                    remaining_space_percentage = 0
-                
-                # Display volumes
-                col_a, col_b = st.columns(2)
-                
-                with col_a:
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div style="color: #66b2ff; font-weight: bold; font-size: 1rem;">Box Volume</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #66b2ff; margin: 10px 0;">
-                            {box_volume_mm3 * mm3_to_remaining[remaining_unit]:,.2f}
-                        </div>
-                        <div class="result-unit">{remaining_unit}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with col_b:
-                    # Show if using total or single volume
-                    volume_label = "Total Product Volume" if st.session_state.get('product_quantity', 1) > 1 else "Product Volume"
-                    quantity_info = f" (×{st.session_state.get('product_quantity', 1)})" if st.session_state.get('product_quantity', 1) > 1 else ""
-                    
-                    st.markdown(f"""
-                    <div class="metric-card">
-                        <div style="color: #ab47bc; font-weight: bold; font-size: 1rem;">{volume_label}{quantity_info}</div>
-                        <div style="font-size: 1.5rem; font-weight: bold; color: #ab47bc; margin: 10px 0;">
-                            {product_volume_to_use * mm3_to_remaining[remaining_unit]:,.2f}
-                        </div>
-                        <div class="result-unit">{remaining_unit}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                # Remaining volume
-                color = "#4caf50" if remaining_volume_result > 0 else "#f44336"
-                st.markdown(f"""
-                <div class="metric-card" style="border-color: {color};">
-                    <div style="color: {color}; font-weight: bold; font-size: 1.2rem;">Remaining Volume</div>
-                    <div class="result-value" style="color: {color};">{remaining_volume_result:,.2f}</div>
-                    <div class="result-unit">{remaining_unit}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # Volume Efficiency Visualization
-                st.markdown("---")
-                st.markdown("### 📊 Volume Efficiency Analysis")
-                
-                # Create three columns for gauge, donut, and comparison
-                viz_col1, viz_col2 = st.columns(2)
-                
-                with viz_col1:
-                    # Animated Gauge Chart
-                    gauge_fig = create_efficiency_gauge(volume_efficiency_percentage)
-                    st.plotly_chart(gauge_fig, use_container_width=True, key="efficiency_gauge")
-                
-                with viz_col2:
-                    # Donut Chart for Space Distribution
-                    donut_fig = create_donut_chart(volume_efficiency_percentage)
-                    st.plotly_chart(donut_fig, use_container_width=True, key="space_donut")
-                
-                # Volume Comparison Bar Chart
-                st.markdown("### 📦 Volume Breakdown")
-                comparison_fig = create_volume_comparison_chart(
-                    box_volume_mm3 * mm3_to_remaining[remaining_unit],
-                    product_volume_to_use * mm3_to_remaining[remaining_unit],
-                    remaining_unit
-                )
-                st.plotly_chart(comparison_fig, use_container_width=True, key="volume_comparison")
-                
-                # 3D Box Visualization
-                if box_length > 0 and box_width > 0 and box_height > 0:
-                    st.markdown("### 🎁 3D Box Preview")
-                    box_3d_fig = create_3d_box_visualization(
-                        box_length,
-                        box_width,
-                        box_height,
-                        volume_efficiency_percentage,
-                        st.session_state.pref_dimension_unit
-                    )
-                    st.plotly_chart(box_3d_fig, use_container_width=True, key="box_3d")
-                
-                # Status messages
-                if remaining_volume_result < 0:
-                    st.error("⚠️ Warning: Product volume exceeds box capacity!")
-                else:
-                    st.success(f"✅ Box has sufficient space with {remaining_volume_result:,.2f} {remaining_unit} remaining")
-            else:
-                st.info("💡 Calculate the Primary Product Volume first to see remaining space analysis")
+            if st.button("← Back to Secondary Packaging", use_container_width=True, key="back_to_secondary"):
+                st.session_state.analyzer_section = 'secondary'
+                st.rerun()
 
+# END OF SECTION NAVIGATION
 # TAB 2: Project Results
 with tab2:
     st.markdown("## Project Results")
