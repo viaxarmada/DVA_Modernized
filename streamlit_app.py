@@ -31,6 +31,16 @@ st.markdown("""
         font-family: 'JetBrains Mono', monospace;
     }
     
+    /* Brighten all buttons by 5% in off state */
+    button[kind="secondary"], button[kind="primary"] {
+        filter: brightness(1.05) !important;
+    }
+    
+    /* Extra brightness on hover */
+    button[kind="secondary"]:hover, button[kind="primary"]:hover {
+        filter: brightness(1.15) !important;
+    }
+    
     /* Sophisticated dark background with subtle depth */
     .main {
         background: #050b14;
@@ -709,7 +719,7 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='#e2e8f0'),
-        height=540,  # Reduced by 10% for better fit
+        height=486,  # Reduced by 19% total for better fit
         margin=dict(l=0, r=0, t=30, b=0),
         showlegend=False,
         title=dict(
@@ -908,28 +918,26 @@ def create_volume_breakdown_bar(product_volume, remaining_volume, unit):
     
     fig = go.Figure()
     
-    # Product volume (filled portion) - Blue/Green based on efficiency
-    color_product = '#10b981' if product_pct >= 85 else '#3b82f6' if product_pct >= 75 else '#f59e0b'
-    
+    # Product volume (filled portion) - GREEN (always green for product)
     fig.add_trace(go.Bar(
         x=[product_volume],
         y=['Volume'],
         orientation='h',
         name='Product Volume',
-        marker=dict(color=color_product),
+        marker=dict(color='#10b981'),  # Green for product
         text=f'{product_volume:.2f} {unit}',
         textposition='inside',
         hovertemplate=f'<b>Product Volume</b><br>{product_volume:.2f} {unit}<br>{product_pct:.1f}%<extra></extra>',
         showlegend=True
     ))
     
-    # Remaining volume (empty portion) - Light gray
+    # Remaining volume (empty space) - BLUE
     fig.add_trace(go.Bar(
         x=[remaining_volume],
         y=['Volume'],
         orientation='h',
         name='Remaining Space',
-        marker=dict(color='rgba(148, 163, 184, 0.3)'),
+        marker=dict(color='#3b82f6'),  # Blue for remaining
         text=f'{remaining_volume:.2f} {unit}' if remaining_volume > 0 else '',
         textposition='inside',
         hovertemplate=f'<b>Remaining Space</b><br>{remaining_volume:.2f} {unit}<br>{remaining_pct:.1f}%<extra></extra>',
@@ -1121,8 +1129,8 @@ if 'samples' not in st.session_state:
 if 'show_success' not in st.session_state:
     st.session_state.show_success = False
 
-# Header - Mobile-friendly horizontal layout
-header_col1, header_col2 = st.columns([1, 6])
+# Header - Mobile-friendly horizontal layout with animated title
+header_col1, header_col2 = st.columns([1, 9])  # Adjusted ratio to bring closer
 
 with header_col1:
     # Display logo if available
@@ -1133,9 +1141,65 @@ with header_col1:
 
 with header_col2:
     st.markdown("""
-    <div style="display: flex; align-items: center; height: 100px;">
+    <style>
+    @keyframes fadeInLetter {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .animated-title {
+        display: inline-block;
+    }
+    
+    .animated-title span {
+        display: inline-block;
+        opacity: 0;
+        animation: fadeInLetter 0.3s ease-in-out forwards;
+    }
+    
+    /* Individual letter delays */
+    .animated-title span:nth-child(1) { animation-delay: 0.05s; }
+    .animated-title span:nth-child(2) { animation-delay: 0.1s; }
+    .animated-title span:nth-child(3) { animation-delay: 0.15s; }
+    .animated-title span:nth-child(4) { animation-delay: 0.2s; }
+    .animated-title span:nth-child(5) { animation-delay: 0.25s; }
+    .animated-title span:nth-child(6) { animation-delay: 0.3s; }
+    .animated-title span:nth-child(7) { animation-delay: 0.35s; }
+    .animated-title span:nth-child(8) { animation-delay: 0.4s; }
+    .animated-title span:nth-child(9) { animation-delay: 0.45s; }
+    .animated-title span:nth-child(10) { animation-delay: 0.5s; }
+    .animated-title span:nth-child(11) { animation-delay: 0.55s; }
+    .animated-title span:nth-child(12) { animation-delay: 0.6s; }
+    .animated-title span:nth-child(13) { animation-delay: 0.65s; }
+    .animated-title span:nth-child(14) { animation-delay: 0.7s; }
+    .animated-title span:nth-child(15) { animation-delay: 0.75s; }
+    .animated-title span:nth-child(16) { animation-delay: 0.8s; }
+    .animated-title span:nth-child(17) { animation-delay: 0.85s; }
+    .animated-title span:nth-child(18) { animation-delay: 0.9s; }
+    .animated-title span:nth-child(19) { animation-delay: 0.95s; }
+    .animated-title span:nth-child(20) { animation-delay: 1.0s; }
+    .animated-title span:nth-child(21) { animation-delay: 1.05s; }
+    .animated-title span:nth-child(22) { animation-delay: 1.1s; }
+    .animated-title span:nth-child(23) { animation-delay: 1.15s; }
+    .animated-title span:nth-child(24) { animation-delay: 1.2s; }
+    .animated-title span:nth-child(25) { animation-delay: 1.25s; }
+    .animated-title span:nth-child(26) { animation-delay: 1.3s; }
+    .animated-title span:nth-child(27) { animation-delay: 1.35s; }
+    .animated-title span:nth-child(28) { animation-delay: 1.4s; }
+    .animated-title span:nth-child(29) { animation-delay: 1.45s; }
+    .animated-title span:nth-child(30) { animation-delay: 1.5s; }
+    </style>
+    <div style="display: flex; align-items: center; height: 100px; margin-left: -20px;">
         <div>
-            <h1 style="margin: 0; padding: 0; line-height: 1.2;">Displacement Volume Analyzer</h1>
+            <h1 class="animated-title" style="margin: 0; padding: 0; line-height: 1.2;">
+                <span>D</span><span>i</span><span>s</span><span>p</span><span>l</span><span>a</span><span>c</span><span>e</span><span>m</span><span>e</span><span>n</span><span>t</span><span> </span><span>V</span><span>o</span><span>l</span><span>u</span><span>m</span><span>e</span><span> </span><span>A</span><span>n</span><span>a</span><span>l</span><span>y</span><span>z</span><span>e</span><span>r</span>
+            </h1>
             <p style="margin: 0; padding: 0; font-size: 0.75rem; color: #94a3b8; font-style: italic;">
                 Archimedes' Principle | Water at 4°C (1 g/mL)
             </p>
@@ -1983,8 +2047,30 @@ with tab1:
     
     # SECTION 3: VOLUME ANALYSIS (FULL SCREEN VISUALIZATIONS!)
     elif st.session_state.analyzer_section == 'analysis':
-        # Auto-save analysis data when entering section
-        if 'primary_volume_mm3' in st.session_state and 'box_volume_mm3' in st.session_state:
+        # Auto-load saved analysis data if available (comprehensive restore)
+        if 'saved_analysis_data' in st.session_state and st.session_state.saved_analysis_data:
+            saved = st.session_state.saved_analysis_data
+            # Restore all calculation data
+            if 'primary_volume_mm3' not in st.session_state:
+                st.session_state.primary_volume_mm3 = saved.get('primary_volume_mm3', 0)
+            if 'box_volume_mm3' not in st.session_state:
+                st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
+            if 'total_product_volume_mm3' not in st.session_state:
+                st.session_state.total_product_volume_mm3 = saved.get('total_product_volume_mm3', 0)
+            # Restore box dimensions (for Secondary recall)
+            if 'box_length' not in st.session_state or st.session_state.box_length == 0.0:
+                st.session_state.box_length = saved.get('box_length', 0.0)
+            if 'box_width' not in st.session_state or st.session_state.box_width == 0.0:
+                st.session_state.box_width = saved.get('box_width', 0.0)
+            if 'box_height' not in st.session_state or st.session_state.box_height == 0.0:
+                st.session_state.box_height = saved.get('box_height', 0.0)
+            # Restore primary data (for Primary recall)
+            if 'product_weight' not in st.session_state or st.session_state.product_weight == 0.0:
+                st.session_state.product_weight = saved.get('product_weight', 0.0)
+            if 'product_quantity' not in st.session_state or st.session_state.product_quantity == 1:
+                st.session_state.product_quantity = saved.get('product_quantity', 1)
+        # Also save current data when entering section (for auto-save)
+        elif 'primary_volume_mm3' in st.session_state and 'box_volume_mm3' in st.session_state:
             st.session_state.saved_analysis_data = {
                 'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0),
                 'box_volume_mm3': st.session_state.get('box_volume_mm3', 0),
@@ -1992,16 +2078,9 @@ with tab1:
                 'box_length': st.session_state.get('box_length', 0.0),
                 'box_width': st.session_state.get('box_width', 0.0),
                 'box_height': st.session_state.get('box_height', 0.0),
+                'product_weight': st.session_state.get('product_weight', 0.0),
+                'product_quantity': st.session_state.get('product_quantity', 1),
             }
-        # Auto-load if coming back and data exists
-        elif 'saved_analysis_data' in st.session_state and st.session_state.saved_analysis_data:
-            saved = st.session_state.saved_analysis_data
-            if 'primary_volume_mm3' not in st.session_state:
-                st.session_state.primary_volume_mm3 = saved.get('primary_volume_mm3', 0)
-            if 'box_volume_mm3' not in st.session_state:
-                st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
-            if 'total_product_volume_mm3' not in st.session_state:
-                st.session_state.total_product_volume_mm3 = saved.get('total_product_volume_mm3', 0)
         
         st.markdown("## 📊 Volume Efficiency Analysis")
         
@@ -2065,6 +2144,28 @@ with tab1:
                 st.error("⚠️ Warning: Product volume exceeds box capacity!")
             else:
                 st.success(f"✅ Box has sufficient space with {remaining_volume_result:,.2f} {remaining_unit} remaining")
+            
+            # Save Analysis Data Button
+            st.markdown("")  # Small spacing
+            if st.button("💾 Save Analysis Data", use_container_width=True, type="secondary", key="save_analysis_data"):
+                # Save complete analysis data including box dimensions
+                st.session_state.saved_analysis_data = {
+                    'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0),
+                    'box_volume_mm3': st.session_state.get('box_volume_mm3', 0),
+                    'total_product_volume_mm3': st.session_state.get('total_product_volume_mm3', 0),
+                    'box_length': st.session_state.get('box_length', 0.0),
+                    'box_width': st.session_state.get('box_width', 0.0),
+                    'box_height': st.session_state.get('box_height', 0.0),
+                    'product_weight': st.session_state.get('product_weight', 0.0),
+                    'product_quantity': st.session_state.get('product_quantity', 1),
+                    'volume_efficiency': volume_efficiency_percentage,
+                    'pref_dimension_unit': st.session_state.pref_dimension_unit,
+                    'pref_volume_unit': st.session_state.pref_volume_unit,
+                    'pref_weight_unit': st.session_state.pref_weight_unit
+                }
+                st.success("✅ Analysis data saved!")
+                time.sleep(0.5)
+                st.rerun()
             
             # Persistent Bottom Navigation - All 3 Sections
             st.markdown("---")
@@ -2559,9 +2660,20 @@ with tab2:
                     
                     # Display project card with all info
                     with st.container():
-                        # Show quantity if more than 1
+                        # Determine efficiency level
+                        if percentage_used >= 85:
+                            eff_label = "Excellent"
+                        elif percentage_used >= 75:
+                            eff_label = "Good"
+                        elif percentage_used >= 60:
+                            eff_label = "Fair"
+                        else:
+                            eff_label = "Poor"
+                        
+                        # Show quantity and efficiency in header
                         quantity_info = f" (Qty: {project.get('product_quantity', 1)})" if project.get('product_quantity', 1) > 1 else ""
-                        st.markdown(f"### 📦 {project['project_name']} (Project #{project['project_number']}){quantity_info}")
+                        efficiency_info = f" - {percentage_used:.1f}% {eff_label}"
+                        st.markdown(f"### 📦 {project['project_name']} (Project #{project['project_number']}){quantity_info}{efficiency_info}")
                         
                         # Row 1: Volume metrics
                         vol_col1, vol_col2, vol_col3 = st.columns(3)
@@ -2579,31 +2691,7 @@ with tab2:
                                      delta=f"{percentage_remaining:.1f}% free" if remaining_volume >= 0 else "Overflow!")
                             st.caption(comparison_unit)
                         
-                        # Row 2: Efficiency bar graph (full width)
-                        st.markdown("#### Remaining Volume Efficiency")
-                        
-                        # Determine efficiency level
-                        if percentage_used >= 85:
-                            eff_label = "Excellent"
-                        elif percentage_used >= 75:
-                            eff_label = "Good"
-                        elif percentage_used >= 60:
-                            eff_label = "Fair"
-                        else:
-                            eff_label = "Poor"
-                        
-                        # Show efficiency percentage with label
-                        eff_info_col1, eff_info_col2 = st.columns([1, 3])
-                        with eff_info_col1:
-                            st.markdown(f"**{percentage_used:.1f}%** - {eff_label}")
-                        
-                        # Interactive bar graph
-                        bar_fig = create_mini_efficiency_bar(percentage_used)
-                        # Make it taller for better visibility
-                        bar_fig.update_layout(height=50)
-                        st.plotly_chart(bar_fig, use_container_width=True, key=f"efficiency_bar_{project['project_number']}")
-                        
-                        # Volume Breakdown Bar Chart
+                        # Volume Breakdown Bar Chart (removed efficiency bar above)
                         st.markdown("#### Volume Breakdown")
                         st.caption("Goal: Maximize product volume, minimize empty space")
                         breakdown_fig = create_volume_breakdown_bar(product_volume, remaining_volume, comparison_unit)
