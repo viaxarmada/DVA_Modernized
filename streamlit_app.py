@@ -780,7 +780,7 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
     return fig
 
 def create_3d_volume_preview(length, width, height, product_volume_pct, dimension_unit='inches'):
-    """Create 3D Volume Preview for Analysis section (original design - cleaner, no labels)"""
+    """Create 3D Volume Preview for Analysis section with measurement markers on height and length"""
     
     # Determine color based on efficiency
     if product_volume_pct >= 85:
@@ -808,7 +808,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
     
     fig = go.Figure()
     
-    # Draw clean edges (no annotations)
+    # Draw box edges
     for edge in edges:
         v1, v2 = vertices[edge[0]], vertices[edge[1]]
         fig.add_trace(go.Scatter3d(
@@ -821,7 +821,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
             hoverinfo='skip'
         ))
     
-    # Add semi-transparent faces
+    # Add semi-transparent faces to show volume
     faces_i = [0, 0, 0, 0, 4, 4]
     faces_j = [1, 3, 4, 1, 5, 7]
     faces_k = [2, 7, 5, 5, 6, 6]
@@ -835,6 +835,107 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         k=faces_k,
         color=box_color,
         opacity=0.2,
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Add measurement markers on HEIGHT (left side, back edge)
+    # Measurement line offset from box
+    offset_x = -l - 0.15 * l
+    offset_y = w + 0.1 * w
+    
+    # Height measurement line (vertical)
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x, offset_x],
+        y=[offset_y, offset_y],
+        z=[-h, h],
+        mode='lines',
+        line=dict(color='white', width=3),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Height tick marks
+    num_ticks = min(5, int(height) + 1)  # Number of tick marks
+    for i in range(num_ticks + 1):
+        tick_z = -h + (2*h * i / num_ticks)
+        tick_length = 0.05 * l
+        fig.add_trace(go.Scatter3d(
+            x=[offset_x - tick_length, offset_x + tick_length],
+            y=[offset_y, offset_y],
+            z=[tick_z, tick_z],
+            mode='lines',
+            line=dict(color='white', width=2),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Height measurement label
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x],
+        y=[offset_y],
+        z=[0],
+        mode='text',
+        text=[f'{height:.1f} {dimension_unit}'],
+        textposition='middle left',
+        textfont=dict(size=11, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Add measurement markers on LENGTH (bottom front edge)
+    offset_z = -h - 0.15 * h
+    offset_y_length = -w - 0.1 * w
+    
+    # Length measurement line (horizontal)
+    fig.add_trace(go.Scatter3d(
+        x=[-l, l],
+        y=[offset_y_length, offset_y_length],
+        z=[offset_z, offset_z],
+        mode='lines',
+        line=dict(color='white', width=3),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Length tick marks
+    num_ticks_length = min(5, int(length) + 1)
+    for i in range(num_ticks_length + 1):
+        tick_x = -l + (2*l * i / num_ticks_length)
+        tick_length = 0.05 * h
+        fig.add_trace(go.Scatter3d(
+            x=[tick_x, tick_x],
+            y=[offset_y_length, offset_y_length],
+            z=[offset_z - tick_length, offset_z + tick_length],
+            mode='lines',
+            line=dict(color='white', width=2),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Length measurement label
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[offset_y_length],
+        z=[offset_z - 0.15 * h],
+        mode='text',
+        text=[f'{length:.1f} {dimension_unit}'],
+        textposition='bottom center',
+        textfont=dict(size=11, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Add volume label in center of box
+    volume = length * width * height
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[0],
+        z=[0],
+        mode='text',
+        text=[f'Volume: {volume:.2f} {dimension_unit}³'],
+        textposition='middle center',
+        textfont=dict(size=12, color=box_color, family='monospace'),
         showlegend=False,
         hoverinfo='skip'
     ))
