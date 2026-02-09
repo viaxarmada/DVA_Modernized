@@ -900,6 +900,70 @@ def create_mini_efficiency_bar(efficiency_pct):
     
     return fig
 
+def create_volume_breakdown_bar(product_volume, remaining_volume, unit):
+    """Create volume breakdown stacked bar chart showing product vs remaining"""
+    total = product_volume + remaining_volume
+    product_pct = (product_volume / total * 100) if total > 0 else 0
+    remaining_pct = (remaining_volume / total * 100) if total > 0 else 0
+    
+    fig = go.Figure()
+    
+    # Product volume (filled portion) - Blue/Green based on efficiency
+    color_product = '#10b981' if product_pct >= 85 else '#3b82f6' if product_pct >= 75 else '#f59e0b'
+    
+    fig.add_trace(go.Bar(
+        x=[product_volume],
+        y=['Volume'],
+        orientation='h',
+        name='Product Volume',
+        marker=dict(color=color_product),
+        text=f'{product_volume:.2f} {unit}',
+        textposition='inside',
+        hovertemplate=f'<b>Product Volume</b><br>{product_volume:.2f} {unit}<br>{product_pct:.1f}%<extra></extra>',
+        showlegend=True
+    ))
+    
+    # Remaining volume (empty portion) - Light gray
+    fig.add_trace(go.Bar(
+        x=[remaining_volume],
+        y=['Volume'],
+        orientation='h',
+        name='Remaining Space',
+        marker=dict(color='rgba(148, 163, 184, 0.3)'),
+        text=f'{remaining_volume:.2f} {unit}' if remaining_volume > 0 else '',
+        textposition='inside',
+        hovertemplate=f'<b>Remaining Space</b><br>{remaining_volume:.2f} {unit}<br>{remaining_pct:.1f}%<extra></extra>',
+        showlegend=True
+    ))
+    
+    fig.update_layout(
+        barmode='stack',
+        height=60,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(
+            showticklabels=False,
+            showgrid=False,
+            zeroline=False
+        ),
+        yaxis=dict(
+            showticklabels=False,
+            showgrid=False
+        ),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=10)
+        ),
+        hovermode='closest'
+    )
+    
+    return fig
+
 def create_2d_box_illustration(length, width, height, unit='inches'):
     """Create dynamic 2D box illustration with dimension callouts"""
     if length <= 0 or width <= 0 or height <= 0:
@@ -1485,6 +1549,7 @@ with tab1:
             weight = st.number_input(
                 f"Weight of Water ({weight_unit})",
                 min_value=0.0,
+                value=st.session_state.get('product_weight', 0.0),
                 step=0.1,
                 format="%.2f",
                 help=f"Enter weight in {weight_unit}",
@@ -1591,6 +1656,7 @@ with tab1:
                     "Quantity",
                     min_value=1,
                     max_value=999,
+                    value=st.session_state.get('product_quantity', 1),
                     step=1,
                     key="product_quantity",
                     label_visibility="collapsed"
@@ -1613,7 +1679,6 @@ with tab1:
         
         # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
-        st.markdown("### 🧭 Quick Navigation")
         nav_col1, nav_col2, nav_col3 = st.columns(3)
         
         with nav_col1:
@@ -1653,6 +1718,7 @@ with tab1:
             box_length = st.number_input(
                 f"Length ({dimension_unit})",
                 min_value=0.0,
+                value=st.session_state.get('box_length', 0.0),
                 step=0.1,
                 format="%.2f",
                 key="box_length"
@@ -1661,6 +1727,7 @@ with tab1:
             box_width = st.number_input(
                 f"Width ({dimension_unit})",
                 min_value=0.0,
+                value=st.session_state.get('box_width', 0.0),
                 step=0.1,
                 format="%.2f",
                 key="box_width"
@@ -1669,6 +1736,7 @@ with tab1:
             box_height = st.number_input(
                 f"Height ({dimension_unit})",
                 min_value=0.0,
+                value=st.session_state.get('box_height', 0.0),
                 step=0.1,
                 format="%.2f",
                 key="box_height"
@@ -1830,7 +1898,6 @@ with tab1:
         
         # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
-        st.markdown("### 🧭 Quick Navigation")
         nav_col1, nav_col2, nav_col3 = st.columns(3)
         
         with nav_col1:
@@ -1921,7 +1988,6 @@ with tab1:
             
             # Persistent Bottom Navigation - All 3 Sections
             st.markdown("---")
-            st.markdown("### 🧭 Quick Navigation")
             nav_col1, nav_col2, nav_col3 = st.columns(3)
             
             with nav_col1:
@@ -2436,6 +2502,12 @@ with tab2:
                         # Make it taller for better visibility
                         bar_fig.update_layout(height=50)
                         st.plotly_chart(bar_fig, use_container_width=True, key=f"efficiency_bar_{project['project_number']}")
+                        
+                        # Volume Breakdown Bar Chart
+                        st.markdown("#### Volume Breakdown")
+                        st.caption("Goal: Maximize product volume, minimize empty space")
+                        breakdown_fig = create_volume_breakdown_bar(product_volume, remaining_volume, comparison_unit)
+                        st.plotly_chart(breakdown_fig, use_container_width=True, key=f"breakdown_bar_{project['project_number']}")
                         
                         st.markdown("---")
             else:
