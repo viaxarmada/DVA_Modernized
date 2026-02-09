@@ -779,7 +779,263 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
     
     return fig
 
-def create_3d_volume_preview(length, width, height, product_volume_pct, dimension_unit='inches'):
+def create_3d_volume_preview(length, width, height, product_volume_pct, dimension_unit='inches', 
+                            product_volume=None, product_weight=None, product_quantity=1):
+    """Create comprehensive 3D Volume Preview with full project information"""
+    
+    # Determine box color based on efficiency
+    if product_volume_pct >= 85:
+        box_color = '#3b82f6'  # Blue for box
+    elif product_volume_pct >= 75:
+        box_color = '#3b82f6'  # Blue
+    elif product_volume_pct >= 60:
+        box_color = '#f59e0b'  # Orange
+    else:
+        box_color = '#ef4444'  # Red
+    
+    product_color = '#10b981'  # Green for product volume
+    
+    # Define vertices of box (centered at origin)
+    l, w, h = length/2, width/2, height/2
+    vertices = [
+        [-l, -w, -h], [l, -w, -h], [l, w, -h], [-l, w, -h],  # Bottom
+        [-l, -w, h], [l, -w, h], [l, w, h], [-l, w, h]   # Top
+    ]
+    
+    # Define edges
+    edges = [
+        [0,1], [1,2], [2,3], [3,0],  # Bottom
+        [4,5], [5,6], [6,7], [7,4],  # Top
+        [0,4], [1,5], [2,6], [3,7]   # Vertical
+    ]
+    
+    fig = go.Figure()
+    
+    # Draw box edges in BLUE
+    for edge in edges:
+        v1, v2 = vertices[edge[0]], vertices[edge[1]]
+        fig.add_trace(go.Scatter3d(
+            x=[v1[0], v2[0]],
+            y=[v1[1], v2[1]],
+            z=[v1[2], v2[2]],
+            mode='lines',
+            line=dict(color=box_color, width=5),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Add semi-transparent box faces
+    faces_i = [0, 0, 0, 0, 4, 4]
+    faces_j = [1, 3, 4, 1, 5, 7]
+    faces_k = [2, 7, 5, 5, 6, 6]
+    
+    fig.add_trace(go.Mesh3d(
+        x=[v[0] for v in vertices],
+        y=[v[1] for v in vertices],
+        z=[v[2] for v in vertices],
+        i=faces_i,
+        j=faces_j,
+        k=faces_k,
+        color=box_color,
+        opacity=0.15,
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # === MEASUREMENT SCALES ===
+    
+    # HEIGHT scale (left side, back)
+    offset_x = -l - 0.2 * l
+    offset_y = w + 0.15 * w
+    
+    # Vertical measurement line
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x, offset_x],
+        y=[offset_y, offset_y],
+        z=[-h, h],
+        mode='lines',
+        line=dict(color='white', width=2),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Height ticks
+    num_ticks = 5
+    for i in range(num_ticks + 1):
+        tick_z = -h + (2*h * i / num_ticks)
+        fig.add_trace(go.Scatter3d(
+            x=[offset_x - 0.03*l, offset_x + 0.03*l],
+            y=[offset_y, offset_y],
+            z=[tick_z, tick_z],
+            mode='lines',
+            line=dict(color='white', width=1.5),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # HEIGHT label
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x - 0.1*l],
+        y=[offset_y],
+        z=[0],
+        mode='text',
+        text=[f'H: {height:.1f}"'],
+        textfont=dict(size=10, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # LENGTH scale (bottom front)
+    offset_z = -h - 0.2 * h
+    offset_y_len = -w - 0.15 * w
+    
+    # Horizontal measurement line
+    fig.add_trace(go.Scatter3d(
+        x=[-l, l],
+        y=[offset_y_len, offset_y_len],
+        z=[offset_z, offset_z],
+        mode='lines',
+        line=dict(color='white', width=2),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Length ticks
+    for i in range(num_ticks + 1):
+        tick_x = -l + (2*l * i / num_ticks)
+        fig.add_trace(go.Scatter3d(
+            x=[tick_x, tick_x],
+            y=[offset_y_len, offset_y_len],
+            z=[offset_z - 0.03*h, offset_z + 0.03*h],
+            mode='lines',
+            line=dict(color='white', width=1.5),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # LENGTH label
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[offset_y_len],
+        z=[offset_z - 0.12*h],
+        mode='text',
+        text=[f'L: {length:.1f}"'],
+        textfont=dict(size=10, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # WIDTH scale (bottom right)
+    offset_x_wid = l + 0.2 * l
+    
+    # Depth measurement line
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x_wid, offset_x_wid],
+        y=[-w, w],
+        z=[offset_z, offset_z],
+        mode='lines',
+        line=dict(color='white', width=2),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Width ticks
+    for i in range(num_ticks + 1):
+        tick_y = -w + (2*w * i / num_ticks)
+        fig.add_trace(go.Scatter3d(
+            x=[offset_x_wid - 0.03*l, offset_x_wid + 0.03*l],
+            y=[tick_y, tick_y],
+            z=[offset_z, offset_z],
+            mode='lines',
+            line=dict(color='white', width=1.5),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # WIDTH label
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x_wid + 0.1*l],
+        y=[0],
+        z=[offset_z],
+        mode='text',
+        text=[f'W: {width:.1f}"'],
+        textfont=dict(size=10, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # === PROJECT INFORMATION ===
+    
+    # Box volume (BLUE)
+    box_volume = length * width * height
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[0],
+        z=[h + 0.4*h],
+        mode='text',
+        text=[f'<b>Box Volume: {box_volume:.2f} {dimension_unit}³</b>'],
+        textfont=dict(size=13, color=box_color, family='Arial Black'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Product volume (GREEN) - if provided
+    if product_volume is not None:
+        fig.add_trace(go.Scatter3d(
+            x=[0],
+            y=[0],
+            z=[h + 0.25*h],
+            mode='text',
+            text=[f'<b>Product Volume: {product_volume:.2f} {dimension_unit}³</b>'],
+            textfont=dict(size=12, color=product_color, family='Arial Black'),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        # Quantity if > 1
+        if product_quantity > 1:
+            fig.add_trace(go.Scatter3d(
+                x=[0],
+                y=[0],
+                z=[h + 0.12*h],
+                mode='text',
+                text=[f'Quantity: {product_quantity} units'],
+                textfont=dict(size=10, color='#94a3b8'),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+    
+    # Efficiency percentage (center)
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[0],
+        z=[0],
+        mode='text',
+        text=[f'{product_volume_pct:.1f}% Efficient'],
+        textfont=dict(size=14, color='white', family='Arial Black'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            zaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            bgcolor='rgba(15, 23, 42, 0.4)',
+            camera=dict(
+                eye=dict(x=1.6, y=1.6, z=1.3),
+                up=dict(x=0, y=0, z=1)
+            ),
+            aspectmode='data'
+        ),
+        height=550,  # Taller to accommodate labels
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        showlegend=False
+    )
+    
+    return fig
     """Create 3D Volume Preview for Analysis section with measurement markers on height and length"""
     
     # Determine color based on efficiency
@@ -2001,60 +2257,65 @@ with tab1:
         </script>
         """, unsafe_allow_html=True)
         
-        # Auto-load saved secondary data - ALWAYS load if exists
-        loaded_from_storage = False
+        # Auto-load saved secondary data - ONLY ONCE per session entry
+        if 'secondary_loaded_this_session' not in st.session_state:
+            st.session_state.secondary_loaded_this_session = False
         
-        # Priority 1: Load from saved_secondary_data in session state
-        if 'saved_secondary_data' in st.session_state and st.session_state.saved_secondary_data:
-            saved = st.session_state.saved_secondary_data
-            # ALWAYS load - unconditionally
-            if 'box_length' in saved:
-                st.session_state.box_length = saved['box_length']
-            if 'box_width' in saved:
-                st.session_state.box_width = saved['box_width']
-            if 'box_height' in saved:
-                st.session_state.box_height = saved['box_height']
-            if 'box_volume_mm3' in saved:
-                st.session_state.box_volume_mm3 = saved['box_volume_mm3']
-            loaded_from_storage = True
-        
-        # Priority 2: Try to load from persistent dva_secondary_data.json file
-        if not loaded_from_storage and os.path.exists('dva_secondary_data.json'):
-            try:
-                with open('dva_secondary_data.json', 'r') as f:
-                    file_data = json.load(f)
-                    # Load unconditionally
-                    st.session_state.box_length = file_data.get('box_length', 0.0)
-                    st.session_state.box_width = file_data.get('box_width', 0.0)
-                    st.session_state.box_height = file_data.get('box_height', 0.0)
-                    st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
-                    # Cache to session state
-                    st.session_state.saved_secondary_data = file_data
-                    loaded_from_storage = True
-            except Exception as e:
-                pass  # Silent fail
-        
-        # Priority 3: Check dva_analysis_data.json as fallback
-        if not loaded_from_storage and os.path.exists('dva_analysis_data.json'):
-            try:
-                with open('dva_analysis_data.json', 'r') as f:
-                    file_data = json.load(f)
-                    st.session_state.box_length = file_data.get('box_length', 0.0)
-                    st.session_state.box_width = file_data.get('box_width', 0.0)
-                    st.session_state.box_height = file_data.get('box_height', 0.0)
-                    st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
-                    # Also restore other data
-                    if 'product_weight' in file_data:
-                        st.session_state.product_weight = file_data.get('product_weight', 0.0)
-                    if 'product_quantity' in file_data:
-                        st.session_state.product_quantity = file_data.get('product_quantity', 1)
-                    if 'primary_volume_mm3' in file_data:
-                        st.session_state.primary_volume_mm3 = file_data.get('primary_volume_mm3', 0)
-                    if 'total_product_volume_mm3' in file_data:
-                        st.session_state.total_product_volume_mm3 = file_data.get('total_product_volume_mm3', 0)
-                    loaded_from_storage = True
-            except Exception as e:
-                pass  # Silent fail
+        if not st.session_state.secondary_loaded_this_session:
+            loaded_from_storage = False
+            
+            # Priority 1: Load from saved_secondary_data in session state
+            if 'saved_secondary_data' in st.session_state and st.session_state.saved_secondary_data:
+                saved = st.session_state.saved_secondary_data
+                if 'box_length' in saved and saved['box_length'] > 0:
+                    st.session_state.box_length = saved['box_length']
+                if 'box_width' in saved and saved['box_width'] > 0:
+                    st.session_state.box_width = saved['box_width']
+                if 'box_height' in saved and saved['box_height'] > 0:
+                    st.session_state.box_height = saved['box_height']
+                if 'box_volume_mm3' in saved:
+                    st.session_state.box_volume_mm3 = saved['box_volume_mm3']
+                loaded_from_storage = True
+            
+            # Priority 2: Try to load from persistent dva_secondary_data.json file
+            if not loaded_from_storage and os.path.exists('dva_secondary_data.json'):
+                try:
+                    with open('dva_secondary_data.json', 'r') as f:
+                        file_data = json.load(f)
+                        if file_data.get('box_length', 0) > 0:
+                            st.session_state.box_length = file_data.get('box_length', 0.0)
+                            st.session_state.box_width = file_data.get('box_width', 0.0)
+                            st.session_state.box_height = file_data.get('box_height', 0.0)
+                            st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
+                            st.session_state.saved_secondary_data = file_data
+                            loaded_from_storage = True
+                except Exception as e:
+                    pass
+            
+            # Priority 3: Check dva_analysis_data.json as fallback
+            if not loaded_from_storage and os.path.exists('dva_analysis_data.json'):
+                try:
+                    with open('dva_analysis_data.json', 'r') as f:
+                        file_data = json.load(f)
+                        if file_data.get('box_length', 0) > 0:
+                            st.session_state.box_length = file_data.get('box_length', 0.0)
+                            st.session_state.box_width = file_data.get('box_width', 0.0)
+                            st.session_state.box_height = file_data.get('box_height', 0.0)
+                            st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
+                            if 'product_weight' in file_data:
+                                st.session_state.product_weight = file_data.get('product_weight', 0.0)
+                            if 'product_quantity' in file_data:
+                                st.session_state.product_quantity = file_data.get('product_quantity', 1)
+                            if 'primary_volume_mm3' in file_data:
+                                st.session_state.primary_volume_mm3 = file_data.get('primary_volume_mm3', 0)
+                            if 'total_product_volume_mm3' in file_data:
+                                st.session_state.total_product_volume_mm3 = file_data.get('total_product_volume_mm3', 0)
+                            loaded_from_storage = True
+                except Exception as e:
+                    pass
+            
+            # Mark as loaded for this session entry
+            st.session_state.secondary_loaded_this_session = True
         
         st.markdown("## 📦 Secondary Packaging Calculator")
         
@@ -2276,6 +2537,7 @@ with tab1:
         with nav_col1:
             if st.button("📊 Primary Calculator", use_container_width=True, type="secondary", key="sec_to_primary"):
                 st.session_state.analyzer_section = 'primary'
+                st.session_state.secondary_loaded_this_session = False  # Reset flag
                 st.rerun()
         
         with nav_col2:
@@ -2290,6 +2552,7 @@ with tab1:
             if st.button("📈 Volume Analysis", use_container_width=True, type="secondary", key="sec_to_analysis"):
                 if 'box_volume_mm3' in st.session_state:
                     st.session_state.analyzer_section = 'analysis'
+                    st.session_state.secondary_loaded_this_session = False  # Reset flag
                     st.rerun()
                 else:
                     st.warning("⚠️ Calculate box volume first")
@@ -2385,12 +2648,18 @@ with tab1:
             if all(k in st.session_state for k in ['box_length', 'box_width', 'box_height']):
                 st.markdown("### 📊 3D Volume Preview")
                 
+                # Calculate product volume in display units
+                product_vol_display = product_volume_to_use * mm3_to_remaining[remaining_unit]
+                
                 box_3d_fig = create_3d_volume_preview(
                     st.session_state['box_length'],
                     st.session_state['box_width'],
                     st.session_state['box_height'],
                     volume_efficiency_percentage,
-                    st.session_state.pref_dimension_unit
+                    st.session_state.pref_dimension_unit,
+                    product_volume=product_vol_display,
+                    product_weight=st.session_state.get('product_weight', None),
+                    product_quantity=st.session_state.get('product_quantity', 1)
                 )
                 st.plotly_chart(box_3d_fig, use_container_width=True, key="box_3d_fullscreen")
             
