@@ -2594,19 +2594,41 @@ with tab2:
         st.markdown("---")
         st.markdown("### Project Summary Table")
         
-        # Add CSS for lighter table borders
+        # Add CSS for larger font (20% increase) and better alignment
         st.markdown("""
         <style>
-        /* Lighter dataframe borders */
+        /* Larger font size (20% increase from default) */
         .stDataFrame table {
             border-color: rgba(148, 163, 184, 0.2) !important;
+            font-size: 1.2rem !important; /* 20% larger */
         }
-        .stDataFrame th, .stDataFrame td {
+        .stDataFrame th {
             border-color: rgba(148, 163, 184, 0.15) !important;
+            font-size: 1.2rem !important; /* 20% larger */
+            font-weight: 600;
         }
-        /* Align checkboxes with table rows */
+        .stDataFrame td {
+            border-color: rgba(148, 163, 184, 0.15) !important;
+            font-size: 1.2rem !important; /* 20% larger */
+            padding: 12px 8px !important; /* More padding for larger text */
+        }
+        /* Align checkboxes with table rows - improved */
         div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]) {
-            padding-top: 8px;
+            display: flex;
+            align-items: center;
+            min-height: 52px; /* Match row height with larger text */
+            padding-top: 0px;
+            margin-bottom: 0px;
+        }
+        /* Ensure checkbox is vertically centered */
+        div[data-testid="stCheckbox"] {
+            display: flex;
+            align-items: center;
+            min-height: 52px;
+        }
+        /* Remove extra spacing */
+        div[data-testid="stCheckbox"] > label {
+            margin-bottom: 0 !important;
         }
         </style>
         """, unsafe_allow_html=True)
