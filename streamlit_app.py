@@ -709,7 +709,7 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='#e2e8f0'),
-        height=600,  # Taller for better screen fill
+        height=540,  # Reduced by 10% for better fit
         margin=dict(l=0, r=0, t=30, b=0),
         showlegend=False,
         title=dict(
@@ -1262,6 +1262,14 @@ def create_new_project():
     if 'box_volume_mm3' in st.session_state:
         del st.session_state.box_volume_mm3
     
+    # Clear ALL saved section data
+    if 'saved_primary_data' in st.session_state:
+        del st.session_state.saved_primary_data
+    if 'saved_secondary_data' in st.session_state:
+        del st.session_state.saved_secondary_data
+    if 'saved_analysis_data' in st.session_state:
+        del st.session_state.saved_analysis_data
+    
     # Rerun to refresh display
     st.rerun()
 
@@ -1302,6 +1310,8 @@ def save_current_project():
         'weight': st.session_state.get('primary_weight', 0.0),
         'weight_unit': st.session_state.get('primary_unit', 'grams'),
         'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0.0),
+        'product_quantity': st.session_state.get('product_quantity', 1),
+        'total_product_volume_mm3': st.session_state.get('total_product_volume_mm3', st.session_state.get('primary_volume_mm3', 0.0)),
         # Box data
         'box_length': st.session_state.get('box_length', 0.0),
         'box_width': st.session_state.get('box_width', 0.0),
@@ -1538,6 +1548,18 @@ with tab1:
     
     # SECTION 1: PRIMARY PRODUCT CALCULATOR
     if st.session_state.analyzer_section == 'primary':
+        # Auto-load saved primary data if available
+        if 'saved_primary_data' in st.session_state and st.session_state.saved_primary_data:
+            saved = st.session_state.saved_primary_data
+            if 'product_weight' not in st.session_state or st.session_state.product_weight == 0.0:
+                st.session_state.product_weight = saved.get('product_weight', 0.0)
+            if 'product_quantity' not in st.session_state or st.session_state.product_quantity == 1:
+                st.session_state.product_quantity = saved.get('product_quantity', 1)
+            if 'primary_volume_mm3' not in st.session_state:
+                st.session_state.primary_volume_mm3 = saved.get('primary_volume_mm3', 0)
+            if 'total_product_volume_mm3' not in st.session_state:
+                st.session_state.total_product_volume_mm3 = saved.get('total_product_volume_mm3', 0)
+        
         st.markdown("## 🔬 Primary Product Volume Calculator")
         
         col1, col2 = st.columns([2, 3])
@@ -1676,6 +1698,22 @@ with tab1:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+            
+            # Save Primary Data Button
+            st.markdown("")  # Small spacing
+            if st.button("💾 Save Primary Data", use_container_width=True, type="secondary", key="save_primary_data"):
+                # Save all primary calculator data to session state persistence
+                st.session_state.saved_primary_data = {
+                    'product_weight': st.session_state.get('product_weight', 0.0),
+                    'product_quantity': st.session_state.get('product_quantity', 1),
+                    'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0),
+                    'total_product_volume_mm3': st.session_state.get('total_product_volume_mm3', 0),
+                    'pref_weight_unit': st.session_state.pref_weight_unit,
+                    'pref_volume_unit': st.session_state.pref_volume_unit
+                }
+                st.success("✅ Primary data saved!")
+                time.sleep(0.5)
+                st.rerun()
         
         # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
@@ -1704,6 +1742,18 @@ with tab1:
     
     # SECTION 2: SECONDARY PACKAGING
     elif st.session_state.analyzer_section == 'secondary':
+        # Auto-load saved secondary data if available
+        if 'saved_secondary_data' in st.session_state and st.session_state.saved_secondary_data:
+            saved = st.session_state.saved_secondary_data
+            if 'box_length' not in st.session_state or st.session_state.box_length == 0.0:
+                st.session_state.box_length = saved.get('box_length', 0.0)
+            if 'box_width' not in st.session_state or st.session_state.box_width == 0.0:
+                st.session_state.box_width = saved.get('box_width', 0.0)
+            if 'box_height' not in st.session_state or st.session_state.box_height == 0.0:
+                st.session_state.box_height = saved.get('box_height', 0.0)
+            if 'box_volume_mm3' not in st.session_state:
+                st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
+        
         st.markdown("## 📦 Secondary Packaging Calculator")
         
         st.markdown("### Box Dimensions Calculator")
@@ -1758,7 +1808,17 @@ with tab1:
                     box_volume_mm3 = length_mm * width_mm * height_mm
                     st.session_state.box_volume_mm3 = box_volume_mm3
                     
-                    st.success("✅ Box volume calculated!")
+                    # Auto-save secondary data
+                    st.session_state.saved_secondary_data = {
+                        'box_length': box_length,
+                        'box_width': box_width,
+                        'box_height': box_height,
+                        'box_volume_mm3': box_volume_mm3,
+                        'pref_dimension_unit': st.session_state.pref_dimension_unit
+                    }
+                    
+                    st.success("✅ Box volume calculated and saved!")
+                    time.sleep(0.5)
                     st.rerun()
                 else:
                     st.error("⚠️ Please enter all dimensions")
@@ -1923,6 +1983,26 @@ with tab1:
     
     # SECTION 3: VOLUME ANALYSIS (FULL SCREEN VISUALIZATIONS!)
     elif st.session_state.analyzer_section == 'analysis':
+        # Auto-save analysis data when entering section
+        if 'primary_volume_mm3' in st.session_state and 'box_volume_mm3' in st.session_state:
+            st.session_state.saved_analysis_data = {
+                'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0),
+                'box_volume_mm3': st.session_state.get('box_volume_mm3', 0),
+                'total_product_volume_mm3': st.session_state.get('total_product_volume_mm3', 0),
+                'box_length': st.session_state.get('box_length', 0.0),
+                'box_width': st.session_state.get('box_width', 0.0),
+                'box_height': st.session_state.get('box_height', 0.0),
+            }
+        # Auto-load if coming back and data exists
+        elif 'saved_analysis_data' in st.session_state and st.session_state.saved_analysis_data:
+            saved = st.session_state.saved_analysis_data
+            if 'primary_volume_mm3' not in st.session_state:
+                st.session_state.primary_volume_mm3 = saved.get('primary_volume_mm3', 0)
+            if 'box_volume_mm3' not in st.session_state:
+                st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
+            if 'total_product_volume_mm3' not in st.session_state:
+                st.session_state.total_product_volume_mm3 = saved.get('total_product_volume_mm3', 0)
+        
         st.markdown("## 📊 Volume Efficiency Analysis")
         
         if 'primary_volume_mm3' not in st.session_state or 'box_volume_mm3' not in st.session_state:
@@ -2023,12 +2103,29 @@ with tab2:
         st.markdown("---")
         st.markdown("### Project Summary Table")
         
+        # Add CSS for lighter table borders
+        st.markdown("""
+        <style>
+        /* Lighter dataframe borders */
+        .stDataFrame table {
+            border-color: rgba(148, 163, 184, 0.2) !important;
+        }
+        .stDataFrame th, .stDataFrame td {
+            border-color: rgba(148, 163, 184, 0.15) !important;
+        }
+        /* Align checkboxes with table rows */
+        div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]) {
+            padding-top: 8px;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        
         # Initialize selected projects list in session state
         if 'selected_project_indices' not in st.session_state:
             st.session_state.selected_project_indices = []
         
         # Create columns for checkboxes and table
-        col_select, col_table = st.columns([0.6, 9.4])
+        col_select, col_table = st.columns([0.5, 9.5])
         
         with col_select:
             st.markdown("**Select**")
@@ -2442,8 +2539,9 @@ with tab2:
                 
                 # Display each project with all data in compact format
                 for project in projects_with_boxes:
-                    box_volume_mm3 = project['box_volume_mm3']
-                    product_volume_mm3 = project['primary_volume_mm3']
+                    box_volume_mm3 = project.get('box_volume_mm3', 0)
+                    # Use total product volume (with quantity) if available, otherwise primary
+                    product_volume_mm3 = project.get('total_product_volume_mm3', project.get('primary_volume_mm3', 0))
                     remaining_volume_mm3 = box_volume_mm3 - product_volume_mm3
                     
                     # Convert to selected unit
@@ -2461,7 +2559,9 @@ with tab2:
                     
                     # Display project card with all info
                     with st.container():
-                        st.markdown(f"### 📦 {project['project_name']} (Project #{project['project_number']})")
+                        # Show quantity if more than 1
+                        quantity_info = f" (Qty: {project.get('product_quantity', 1)})" if project.get('product_quantity', 1) > 1 else ""
+                        st.markdown(f"### 📦 {project['project_name']} (Project #{project['project_number']}){quantity_info}")
                         
                         # Row 1: Volume metrics
                         vol_col1, vol_col2, vol_col3 = st.columns(3)
