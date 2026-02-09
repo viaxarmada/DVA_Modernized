@@ -946,7 +946,7 @@ def create_volume_breakdown_bar(product_volume, remaining_volume, unit):
     
     fig.update_layout(
         barmode='stack',
-        height=60,
+        height=78,  # Increased by 30% from 60px for better legibility
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
@@ -1129,8 +1129,8 @@ if 'samples' not in st.session_state:
 if 'show_success' not in st.session_state:
     st.session_state.show_success = False
 
-# Header - Mobile-friendly horizontal layout with animated title
-header_col1, header_col2 = st.columns([1, 9])  # Adjusted ratio to bring closer
+# Header - Mobile-friendly horizontal layout
+header_col1, header_col2 = st.columns([1, 6])
 
 with header_col1:
     # Display logo if available
@@ -1141,67 +1141,9 @@ with header_col1:
 
 with header_col2:
     st.markdown("""
-    <style>
-    @keyframes fadeInLetter {
-        from {
-            opacity: 0;
-            transform: translateY(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-    
-    .animated-title {
-        display: inline-block;
-        color: #e2e8f0 !important;
-    }
-    
-    .animated-title span {
-        display: inline-block;
-        opacity: 0;
-        animation: fadeInLetter 0.3s ease-in-out forwards;
-        color: #e2e8f0 !important;
-    }
-    
-    /* Individual letter delays */
-    .animated-title span:nth-child(1) { animation-delay: 0.05s; }
-    .animated-title span:nth-child(2) { animation-delay: 0.1s; }
-    .animated-title span:nth-child(3) { animation-delay: 0.15s; }
-    .animated-title span:nth-child(4) { animation-delay: 0.2s; }
-    .animated-title span:nth-child(5) { animation-delay: 0.25s; }
-    .animated-title span:nth-child(6) { animation-delay: 0.3s; }
-    .animated-title span:nth-child(7) { animation-delay: 0.35s; }
-    .animated-title span:nth-child(8) { animation-delay: 0.4s; }
-    .animated-title span:nth-child(9) { animation-delay: 0.45s; }
-    .animated-title span:nth-child(10) { animation-delay: 0.5s; }
-    .animated-title span:nth-child(11) { animation-delay: 0.55s; }
-    .animated-title span:nth-child(12) { animation-delay: 0.6s; }
-    .animated-title span:nth-child(13) { animation-delay: 0.65s; }
-    .animated-title span:nth-child(14) { animation-delay: 0.7s; }
-    .animated-title span:nth-child(15) { animation-delay: 0.75s; }
-    .animated-title span:nth-child(16) { animation-delay: 0.8s; }
-    .animated-title span:nth-child(17) { animation-delay: 0.85s; }
-    .animated-title span:nth-child(18) { animation-delay: 0.9s; }
-    .animated-title span:nth-child(19) { animation-delay: 0.95s; }
-    .animated-title span:nth-child(20) { animation-delay: 1.0s; }
-    .animated-title span:nth-child(21) { animation-delay: 1.05s; }
-    .animated-title span:nth-child(22) { animation-delay: 1.1s; }
-    .animated-title span:nth-child(23) { animation-delay: 1.15s; }
-    .animated-title span:nth-child(24) { animation-delay: 1.2s; }
-    .animated-title span:nth-child(25) { animation-delay: 1.25s; }
-    .animated-title span:nth-child(26) { animation-delay: 1.3s; }
-    .animated-title span:nth-child(27) { animation-delay: 1.35s; }
-    .animated-title span:nth-child(28) { animation-delay: 1.4s; }
-    .animated-title span:nth-child(29) { animation-delay: 1.45s; }
-    .animated-title span:nth-child(30) { animation-delay: 1.5s; }
-    </style>
-    <div style="display: flex; align-items: center; height: 100px; margin-left: -20px;">
+    <div style="display: flex; align-items: center; height: 100px;">
         <div>
-            <h1 class="animated-title" style="margin: 0; padding: 0; line-height: 1.2; color: #e2e8f0;">
-                <span>D</span><span>i</span><span>s</span><span>p</span><span>l</span><span>a</span><span>c</span><span>e</span><span>m</span><span>e</span><span>n</span><span>t</span><span> </span><span>V</span><span>o</span><span>l</span><span>u</span><span>m</span><span>e</span><span> </span><span>A</span><span>n</span><span>a</span><span>l</span><span>y</span><span>z</span><span>e</span><span>r</span>
-            </h1>
+            <h1 style="margin: 0; padding: 0; line-height: 1.2;">Displacement Volume Analyzer</h1>
             <p style="margin: 0; padding: 0; font-size: 0.75rem; color: #94a3b8; font-style: italic;">
                 Archimedes' Principle | Water at 4°C (1 g/mL)
             </p>
@@ -1336,10 +1278,16 @@ def create_new_project():
     if 'saved_analysis_data' in st.session_state:
         del st.session_state.saved_analysis_data
     
-    # Delete persistent analysis data file
+    # Delete persistent data files
     if os.path.exists('dva_analysis_data.json'):
         try:
             os.remove('dva_analysis_data.json')
+        except Exception:
+            pass  # Silent fail
+    
+    if os.path.exists('dva_secondary_data.json'):
+        try:
+            os.remove('dva_secondary_data.json')
         except Exception:
             pass  # Silent fail
     
@@ -1827,7 +1775,24 @@ with tab1:
             if 'box_volume_mm3' not in st.session_state:
                 st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
         
-        # Also try to load from persistent file if available
+        # Also try to load from persistent dva_secondary_data.json file if available
+        elif os.path.exists('dva_secondary_data.json'):
+            try:
+                with open('dva_secondary_data.json', 'r') as f:
+                    file_data = json.load(f)
+                    # Load box dimensions from file if not already set
+                    if 'box_length' not in st.session_state or st.session_state.box_length == 0.0:
+                        st.session_state.box_length = file_data.get('box_length', 0.0)
+                    if 'box_width' not in st.session_state or st.session_state.box_width == 0.0:
+                        st.session_state.box_width = file_data.get('box_width', 0.0)
+                    if 'box_height' not in st.session_state or st.session_state.box_height == 0.0:
+                        st.session_state.box_height = file_data.get('box_height', 0.0)
+                    if 'box_volume_mm3' not in st.session_state:
+                        st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
+            except Exception as e:
+                pass  # Silent fail if file doesn't exist or is corrupted
+        
+        # Also check dva_analysis_data.json as fallback
         elif os.path.exists('dva_analysis_data.json'):
             try:
                 with open('dva_analysis_data.json', 'r') as f:
@@ -1907,16 +1872,27 @@ with tab1:
                     box_volume_mm3 = length_mm * width_mm * height_mm
                     st.session_state.box_volume_mm3 = box_volume_mm3
                     
-                    # Auto-save secondary data
-                    st.session_state.saved_secondary_data = {
+                    # Prepare data to save
+                    secondary_data = {
                         'box_length': box_length,
                         'box_width': box_width,
                         'box_height': box_height,
                         'box_volume_mm3': box_volume_mm3,
-                        'pref_dimension_unit': st.session_state.pref_dimension_unit
+                        'pref_dimension_unit': st.session_state.pref_dimension_unit,
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     }
                     
-                    st.success("✅ Box volume calculated and saved!")
+                    # Save to session state
+                    st.session_state.saved_secondary_data = secondary_data
+                    
+                    # Save to persistent file
+                    try:
+                        with open('dva_secondary_data.json', 'w') as f:
+                            json.dump(secondary_data, f, indent=2)
+                        st.success("✅ Box volume calculated and saved to file!")
+                    except Exception as e:
+                        st.warning(f"⚠️ Calculated but file save failed: {e}")
+                    
                     time.sleep(0.5)
                     st.rerun()
                 else:
