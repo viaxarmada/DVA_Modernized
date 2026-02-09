@@ -1763,26 +1763,32 @@ with tab1:
     
     # SECTION 2: SECONDARY PACKAGING
     elif st.session_state.analyzer_section == 'secondary':
-        # Auto-load saved secondary data - ALWAYS load if data exists
+        # Auto-load saved secondary data - Load into session state before widgets render
         loaded_from_file = False
         
-        # Priority 1: Load from session state
+        # Priority 1: Load from saved_secondary_data in session state
         if 'saved_secondary_data' in st.session_state and st.session_state.saved_secondary_data:
             saved = st.session_state.saved_secondary_data
-            st.session_state.box_length = saved.get('box_length', 0.0)
-            st.session_state.box_width = saved.get('box_width', 0.0)
-            st.session_state.box_height = saved.get('box_height', 0.0)
-            st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
+            # Check if we need to load (values are different or don't exist)
+            if (not hasattr(st.session_state, 'box_length') or 
+                st.session_state.get('box_length', 0.0) != saved.get('box_length', 0.0)):
+                st.session_state.box_length = saved.get('box_length', 0.0)
+                st.session_state.box_width = saved.get('box_width', 0.0)
+                st.session_state.box_height = saved.get('box_height', 0.0)
+                st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
         
         # Priority 2: Try to load from persistent dva_secondary_data.json file
         elif os.path.exists('dva_secondary_data.json'):
             try:
                 with open('dva_secondary_data.json', 'r') as f:
                     file_data = json.load(f)
+                    # Load values into session state
                     st.session_state.box_length = file_data.get('box_length', 0.0)
                     st.session_state.box_width = file_data.get('box_width', 0.0)
                     st.session_state.box_height = file_data.get('box_height', 0.0)
                     st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
+                    # Also save to saved_secondary_data so we don't reload every time
+                    st.session_state.saved_secondary_data = file_data
                     loaded_from_file = True
             except Exception as e:
                 pass  # Silent fail if file doesn't exist or is corrupted
@@ -1861,14 +1867,9 @@ with tab1:
                     height_mm = box_height * dim_to_mm[dimension_unit]
                     
                     box_volume_mm3 = length_mm * width_mm * height_mm
-                    
-                    # CRITICAL: Save input values to session state first
-                    st.session_state.box_length = box_length
-                    st.session_state.box_width = box_width
-                    st.session_state.box_height = box_height
                     st.session_state.box_volume_mm3 = box_volume_mm3
                     
-                    # Prepare data to save
+                    # Prepare data to save (widget keys auto-save: box_length, box_width, box_height)
                     secondary_data = {
                         'box_length': box_length,
                         'box_width': box_width,
