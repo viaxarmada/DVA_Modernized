@@ -781,33 +781,304 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
 
 def create_3d_volume_preview(length, width, height, product_volume_pct, dimension_unit='inches', 
                             product_volume=None, product_weight=None, product_quantity=1):
-    """Create comprehensive 3D Volume Preview showing BOTH box and product volumes as separate 3D graphics"""
+    """Create 3D Volume Preview with liquid fill effect showing product volume filling the box"""
     
-    # Determine box color based on efficiency
-    if product_volume_pct >= 85:
-        box_color = '#3b82f6'  # Blue for box
-        product_color = '#10b981'  # Green for product
-    elif product_volume_pct >= 75:
-        box_color = '#3b82f6'  # Blue
-        product_color = '#10b981'  # Green
-    elif product_volume_pct >= 60:
-        box_color = '#f59e0b'  # Orange
-        product_color = '#22c55e'  # Lighter green
-    else:
-        box_color = '#ef4444'  # Red
-        product_color = '#22c55e'  # Lighter green
+    # Colors
+    box_color = '#3b82f6'  # Blue for box
+    liquid_color = '#10b981'  # Green for liquid/product
     
-    # Calculate product box dimensions (scaled to fit efficiency percentage)
-    # Product volume as a cube for visualization
-    if product_volume is not None and product_volume > 0:
-        # Calculate cube root to get dimensions
+    # Calculate liquid fill height based on volume percentage
+    fill_height = height * (product_volume_pct / 100)
+    
+    # Define vertices for SECONDARY PACKAGING BOX (full size, centered at origin)
+    l, w, h = length/2, width/2, height/2
+    box_vertices = [
+        [-l, -w, -h], [l, -w, -h], [l, w, -h], [-l, w, -h],  # Bottom
+        [-l, -w, h], [l, -w, h], [l, w, h], [-l, w, h]   # Top
+    ]
+    
+    # Define edges for box
+    edges = [
+        [0,1], [1,2], [2,3], [3,0],  # Bottom
+        [4,5], [5,6], [6,7], [7,4],  # Top
+        [0,4], [1,5], [2,6], [3,7]   # Vertical
+    ]
+    
+    fig = go.Figure()
+    
+    # === DRAW SECONDARY PACKAGING BOX (BLUE WIREFRAME) ===
+    for edge in edges:
+        v1, v2 = box_vertices[edge[0]], box_vertices[edge[1]]
+        fig.add_trace(go.Scatter3d(
+            x=[v1[0], v2[0]],
+            y=[v1[1], v2[1]],
+            z=[v1[2], v2[2]],
+            mode='lines',
+            line=dict(color=box_color, width=6),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Add semi-transparent box faces
+    faces_i = [0, 0, 0, 0, 4, 4]
+    faces_j = [1, 3, 4, 1, 5, 7]
+    faces_k = [2, 7, 5, 5, 6, 6]
+    
+    fig.add_trace(go.Mesh3d(
+        x=[v[0] for v in box_vertices],
+        y=[v[1] for v in box_vertices],
+        z=[v[2] for v in box_vertices],
+        i=faces_i,
+        j=faces_j,
+        k=faces_k,
+        color=box_color,
+        opacity=0.08,
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # === DRAW LIQUID FILL (GREEN) - Product volume as liquid ===
+    if product_volume_pct > 0:
+        # Liquid fills from bottom up to fill_height
+        fh = fill_height/2  # Half height for centering
+        liquid_vertices = [
+            [-l, -w, -h], [l, -w, -h], [l, w, -h], [-l, w, -h],  # Bottom (same as box)
+            [-l, -w, -h + fill_height], [l, -w, -h + fill_height],  # Top of liquid
+            [l, w, -h + fill_height], [-l, w, -h + fill_height]
+        ]
+        
+        # Draw liquid as solid mesh (semi-transparent green)
+        fig.add_trace(go.Mesh3d(
+            x=[v[0] for v in liquid_vertices],
+            y=[v[1] for v in liquid_vertices],
+            z=[v[2] for v in liquid_vertices],
+            i=faces_i,
+            j=faces_j,
+            k=faces_k,
+            color=liquid_color,
+            opacity=0.4,
+            showlegend=False,
+            hoverinfo='skip',
+            name='Product Volume'
+        ))
+        
+        # Add liquid surface line (top edge of liquid)
+        liquid_top_z = -h + fill_height
+        liquid_surface_edges = [[4,5], [5,6], [6,7], [7,4]]  # Top edges
+        for edge in liquid_surface_edges:
+            v1, v2 = liquid_vertices[edge[0]], liquid_vertices[edge[1]]
+            fig.add_trace(go.Scatter3d(
+                x=[v1[0], v2[0]],
+                y=[v1[1], v2[1]],
+                z=[v1[2], v2[2]],
+                mode='lines',
+                line=dict(color=liquid_color, width=5),
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+    
+    # === MEASUREMENT SCALES (WITH OFFSET LABELS) ===
+    
+    # HEIGHT scale (left side, back)
+    offset_x = -l - 0.25 * l
+    offset_y = w + 0.2 * w
+    
+    # Vertical measurement line
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x, offset_x],
+        y=[offset_y, offset_y],
+        z=[-h, h],
+        mode='lines',
+        line=dict(color='white', width=4),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Height ticks
+    num_ticks = 5
+    for i in range(num_ticks + 1):
+        tick_z = -h + (2*h * i / num_ticks)
+        fig.add_trace(go.Scatter3d(
+            x=[offset_x - 0.05*l, offset_x + 0.05*l],
+            y=[offset_y, offset_y],
+            z=[tick_z, tick_z],
+            mode='lines',
+            line=dict(color='white', width=3),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # HEIGHT label (OFFSET to the left of the line)
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x - 0.25*l],  # Offset LEFT from line
+        y=[offset_y],
+        z=[0],
+        mode='text',
+        text=[f'<b>HEIGHT<br>{height:.1f}"</b>'],
+        textfont=dict(size=15, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # LENGTH scale (bottom front)
+    offset_z = -h - 0.25 * h
+    offset_y_len = -w - 0.2 * w
+    
+    # Horizontal measurement line
+    fig.add_trace(go.Scatter3d(
+        x=[-l, l],
+        y=[offset_y_len, offset_y_len],
+        z=[offset_z, offset_z],
+        mode='lines',
+        line=dict(color='white', width=4),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Length ticks
+    for i in range(num_ticks + 1):
+        tick_x = -l + (2*l * i / num_ticks)
+        fig.add_trace(go.Scatter3d(
+            x=[tick_x, tick_x],
+            y=[offset_y_len, offset_y_len],
+            z=[offset_z - 0.05*h, offset_z + 0.05*h],
+            mode='lines',
+            line=dict(color='white', width=3),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # LENGTH label (OFFSET below the line)
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[offset_y_len],
+        z=[offset_z - 0.25*h],  # Offset BELOW the line
+        mode='text',
+        text=[f'<b>LENGTH: {length:.1f}"</b>'],
+        textfont=dict(size=15, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # WIDTH scale (bottom right)
+    offset_x_wid = l + 0.25 * l
+    
+    # Depth measurement line
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x_wid, offset_x_wid],
+        y=[-w, w],
+        z=[offset_z, offset_z],
+        mode='lines',
+        line=dict(color='white', width=4),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Width ticks
+    for i in range(num_ticks + 1):
+        tick_y = -w + (2*w * i / num_ticks)
+        fig.add_trace(go.Scatter3d(
+            x=[offset_x_wid - 0.05*l, offset_x_wid + 0.05*l],
+            y=[tick_y, tick_y],
+            z=[offset_z, offset_z],
+            mode='lines',
+            line=dict(color='white', width=3),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # WIDTH label (OFFSET to the right of the line)
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x_wid + 0.25*l],  # Offset RIGHT from line
+        y=[0],
+        z=[offset_z],
+        mode='text',
+        text=[f'<b>WIDTH<br>{width:.1f}"</b>'],
+        textfont=dict(size=15, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # === VOLUME LABELS IN TOP LEFT CORNER ===
+    
+    # Calculate corner position (top left of view)
+    corner_x = -l * 0.95
+    corner_y = w * 0.95
+    corner_z_start = h + 0.3*h
+    
+    # Primary Product Volume (GREEN) - Top
+    if product_volume is not None:
+        fig.add_trace(go.Scatter3d(
+            x=[corner_x],
+            y=[corner_y],
+            z=[corner_z_start],
+            mode='text',
+            text=[f'<b>PRIMARY PRODUCT<br>{product_volume:.2f} {dimension_unit}³</b>'],
+            textfont=dict(size=16, color=liquid_color, family='Arial Black'),
+            textposition='middle left',
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        
+        # Secondary Packaging Volume (BLUE) - Below
         box_volume = length * width * height
-        scale_factor = (product_volume_pct / 100) ** (1/3)
-        product_l = length * scale_factor
-        product_w = width * scale_factor
-        product_h = height * scale_factor
-    else:
-        product_l = product_w = product_h = 0
+        fig.add_trace(go.Scatter3d(
+            x=[corner_x],
+            y=[corner_y],
+            z=[corner_z_start - 0.2*h],
+            mode='text',
+            text=[f'<b>SECONDARY PACKAGING<br>{box_volume:.2f} {dimension_unit}³</b>'],
+            textfont=dict(size=16, color=box_color, family='Arial Black'),
+            textposition='middle left',
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Efficiency percentage (center of box)
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[0],
+        z=[0],
+        mode='text',
+        text=[f'<b>{product_volume_pct:.1f}%<br>EFFICIENT</b>'],
+        textfont=dict(size=20, color='white', family='Arial Black'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Quantity if > 1 (bottom of labels)
+    if product_quantity > 1:
+        fig.add_trace(go.Scatter3d(
+            x=[corner_x],
+            y=[corner_y],
+            z=[corner_z_start - 0.4*h],
+            mode='text',
+            text=[f'<b>Quantity: {product_quantity} units</b>'],
+            textfont=dict(size=13, color='#94a3b8'),
+            textposition='middle left',
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            zaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            bgcolor='rgba(15, 23, 42, 0.4)',
+            camera=dict(
+                eye=dict(x=1.7, y=1.7, z=1.4),
+                up=dict(x=0, y=0, z=1)
+            ),
+            aspectmode='data'
+        ),
+        height=600,
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        showlegend=False
+    )
+    
+    return fig
     
     # Define vertices for SECONDARY PACKAGING BOX (centered at origin)
     l, w, h = length/2, width/2, height/2
