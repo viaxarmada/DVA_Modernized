@@ -641,6 +641,143 @@ def create_efficiency_gauge(efficiency_percentage):
     return fig
 
 def create_3d_box_visualization(length, width, height, product_volume_pct, dimension_unit='inches'):
+    """Create interactive 3D box with dimension labels"""
+    
+    # Determine color based on efficiency
+    if product_volume_pct >= 85:
+        box_color = '#10b981'  # Green
+        fill_color = 'rgba(16, 185, 129, 0.3)'
+    elif product_volume_pct >= 75:
+        box_color = '#3b82f6'  # Blue
+        fill_color = 'rgba(59, 130, 246, 0.3)'
+    elif product_volume_pct >= 60:
+        box_color = '#f59e0b'  # Orange
+        fill_color = 'rgba(245, 158, 11, 0.3)'
+    else:
+        box_color = '#ef4444'  # Red
+        fill_color = 'rgba(239, 68, 68, 0.3)'
+    
+    # Define vertices of box (centered at origin)
+    l, w, h = length/2, width/2, height/2
+    vertices = [
+        [-l, -w, -h], [l, -w, -h], [l, w, -h], [-l, w, -h],  # Bottom
+        [-l, -w, h], [l, -w, h], [l, w, h], [-l, w, h]   # Top
+    ]
+    
+    # Define edges
+    edges = [
+        [0,1], [1,2], [2,3], [3,0],  # Bottom
+        [4,5], [5,6], [6,7], [7,4],  # Top
+        [0,4], [1,5], [2,6], [3,7]   # Vertical
+    ]
+    
+    fig = go.Figure()
+    
+    # Draw edges
+    for edge in edges:
+        v1, v2 = vertices[edge[0]], vertices[edge[1]]
+        fig.add_trace(go.Scatter3d(
+            x=[v1[0], v2[0]],
+            y=[v1[1], v2[1]],
+            z=[v1[2], v2[2]],
+            mode='lines',
+            line=dict(color=box_color, width=6),
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+    
+    # Add semi-transparent faces
+    faces_i = [0, 0, 0, 0, 4, 4]
+    faces_j = [1, 3, 4, 1, 5, 7]
+    faces_k = [2, 7, 5, 5, 6, 6]
+    
+    fig.add_trace(go.Mesh3d(
+        x=[v[0] for v in vertices],
+        y=[v[1] for v in vertices],
+        z=[v[2] for v in vertices],
+        i=faces_i,
+        j=faces_j,
+        k=faces_k,
+        color=box_color,
+        opacity=0.15,
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Add dimension annotations
+    # Length arrow (along X-axis, bottom front)
+    fig.add_trace(go.Scatter3d(
+        x=[-l, l],
+        y=[-w-0.3*w, -w-0.3*w],
+        z=[-h, -h],
+        mode='lines+text',
+        line=dict(color='white', width=3),
+        text=['', f'{length:.1f} {dimension_unit}'],
+        textposition='top center',
+        textfont=dict(size=12, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Width arrow (along Y-axis, bottom right)
+    fig.add_trace(go.Scatter3d(
+        x=[l+0.3*l, l+0.3*l],
+        y=[-w, w],
+        z=[-h, -h],
+        mode='lines+text',
+        line=dict(color='white', width=3),
+        text=['', f'{width:.1f} {dimension_unit}'],
+        textposition='top center',
+        textfont=dict(size=12, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Height arrow (along Z-axis, back left)
+    fig.add_trace(go.Scatter3d(
+        x=[-l-0.3*l, -l-0.3*l],
+        y=[w, w],
+        z=[-h, h],
+        mode='lines+text',
+        line=dict(color='white', width=3),
+        text=['', f'{height:.1f} {dimension_unit}'],
+        textposition='middle right',
+        textfont=dict(size=12, color='white'),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    # Add efficiency label
+    fig.add_trace(go.Scatter3d(
+        x=[0],
+        y=[0],
+        z=[h+0.4*h],
+        mode='text',
+        text=[f'{product_volume_pct:.1f}% Efficient'],
+        textfont=dict(size=14, color=box_color),
+        showlegend=False,
+        hoverinfo='skip'
+    ))
+    
+    fig.update_layout(
+        scene=dict(
+            xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            zaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            bgcolor='rgba(15, 23, 42, 0.4)',
+            camera=dict(
+                eye=dict(x=1.5, y=1.5, z=1.2),
+                up=dict(x=0, y=0, z=1)
+            ),
+            aspectmode='data'
+        ),
+        height=486,  # Reduced by 19% total for better fit
+        margin=dict(l=0, r=0, t=0, b=0),
+        paper_bgcolor='rgba(0,0,0,0)',
+        showlegend=False
+    )
+    
+    return fig
     """Create interactive 3D box with product fill visualization"""
     # Create box wireframe
     x = [0, length, length, 0, 0, length, length, 0]
@@ -1763,38 +1900,41 @@ with tab1:
     
     # SECTION 2: SECONDARY PACKAGING
     elif st.session_state.analyzer_section == 'secondary':
-        # Auto-load saved secondary data - Load into session state before widgets render
-        loaded_from_file = False
+        # Auto-load saved secondary data - ALWAYS load if exists
+        loaded_from_storage = False
         
         # Priority 1: Load from saved_secondary_data in session state
         if 'saved_secondary_data' in st.session_state and st.session_state.saved_secondary_data:
             saved = st.session_state.saved_secondary_data
-            # Check if we need to load (values are different or don't exist)
-            if (not hasattr(st.session_state, 'box_length') or 
-                st.session_state.get('box_length', 0.0) != saved.get('box_length', 0.0)):
-                st.session_state.box_length = saved.get('box_length', 0.0)
-                st.session_state.box_width = saved.get('box_width', 0.0)
-                st.session_state.box_height = saved.get('box_height', 0.0)
-                st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
+            # ALWAYS load - unconditionally
+            if 'box_length' in saved:
+                st.session_state.box_length = saved['box_length']
+            if 'box_width' in saved:
+                st.session_state.box_width = saved['box_width']
+            if 'box_height' in saved:
+                st.session_state.box_height = saved['box_height']
+            if 'box_volume_mm3' in saved:
+                st.session_state.box_volume_mm3 = saved['box_volume_mm3']
+            loaded_from_storage = True
         
         # Priority 2: Try to load from persistent dva_secondary_data.json file
-        elif os.path.exists('dva_secondary_data.json'):
+        if not loaded_from_storage and os.path.exists('dva_secondary_data.json'):
             try:
                 with open('dva_secondary_data.json', 'r') as f:
                     file_data = json.load(f)
-                    # Load values into session state
+                    # Load unconditionally
                     st.session_state.box_length = file_data.get('box_length', 0.0)
                     st.session_state.box_width = file_data.get('box_width', 0.0)
                     st.session_state.box_height = file_data.get('box_height', 0.0)
                     st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
-                    # Also save to saved_secondary_data so we don't reload every time
+                    # Cache to session state
                     st.session_state.saved_secondary_data = file_data
-                    loaded_from_file = True
+                    loaded_from_storage = True
             except Exception as e:
-                pass  # Silent fail if file doesn't exist or is corrupted
+                pass  # Silent fail
         
         # Priority 3: Check dva_analysis_data.json as fallback
-        elif os.path.exists('dva_analysis_data.json'):
+        if not loaded_from_storage and os.path.exists('dva_analysis_data.json'):
             try:
                 with open('dva_analysis_data.json', 'r') as f:
                     file_data = json.load(f)
@@ -1802,7 +1942,7 @@ with tab1:
                     st.session_state.box_width = file_data.get('box_width', 0.0)
                     st.session_state.box_height = file_data.get('box_height', 0.0)
                     st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
-                    # Also restore other data if available
+                    # Also restore other data
                     if 'product_weight' in file_data:
                         st.session_state.product_weight = file_data.get('product_weight', 0.0)
                     if 'product_quantity' in file_data:
@@ -1811,9 +1951,9 @@ with tab1:
                         st.session_state.primary_volume_mm3 = file_data.get('primary_volume_mm3', 0)
                     if 'total_product_volume_mm3' in file_data:
                         st.session_state.total_product_volume_mm3 = file_data.get('total_product_volume_mm3', 0)
-                    loaded_from_file = True
+                    loaded_from_storage = True
             except Exception as e:
-                pass  # Silent fail if file doesn't exist or is corrupted
+                pass  # Silent fail
         
         st.markdown("## 📦 Secondary Packaging Calculator")
         
