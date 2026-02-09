@@ -509,6 +509,18 @@ st.markdown("""
         background: linear-gradient(180deg, #3b82f6, #8b5cf6);
         border-radius: 2px;
     }
+    
+    /* Navigation buttons - keep text on single line */
+    button[kind="secondary"] p, button[kind="primary"] p {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+    
+    /* Ensure button containers don't wrap */
+    .stButton > button {
+        white-space: nowrap !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -1225,6 +1237,7 @@ def create_volume_breakdown_bar(product_volume, remaining_volume, unit):
         marker=dict(color='#10b981'),  # Green for product
         text=f'{product_volume:.2f} {unit}',
         textposition='inside',
+        textfont=dict(size=18),  # 50% larger (was 12, now 18)
         hovertemplate=f'<b>Product Volume</b><br>{product_volume:.2f} {unit}<br>{product_pct:.1f}%<extra></extra>',
         showlegend=True
     ))
@@ -1238,6 +1251,7 @@ def create_volume_breakdown_bar(product_volume, remaining_volume, unit):
         marker=dict(color='#3b82f6'),  # Blue for remaining
         text=f'{remaining_volume:.2f} {unit}' if remaining_volume > 0 else '',
         textposition='inside',
+        textfont=dict(size=18),  # 50% larger (was 12, now 18)
         hovertemplate=f'<b>Remaining Space</b><br>{remaining_volume:.2f} {unit}<br>{remaining_pct:.1f}%<extra></extra>',
         showlegend=True
     ))
@@ -1263,7 +1277,7 @@ def create_volume_breakdown_bar(product_volume, remaining_volume, unit):
             y=1.02,
             xanchor="center",
             x=0.5,
-            font=dict(size=10)
+            font=dict(size=15)  # 50% larger legend (was 10, now 15)
         ),
         hovermode='closest'
     )
@@ -2594,7 +2608,7 @@ with tab2:
         st.markdown("---")
         st.markdown("### Project Summary Table")
         
-        # Add CSS for larger font (20% increase) and better alignment
+        # Add CSS for larger font (20% increase) and properly sized checkboxes
         st.markdown("""
         <style>
         /* Larger font size (20% increase from default) */
@@ -2612,23 +2626,33 @@ with tab2:
             font-size: 1.2rem !important; /* 20% larger */
             padding: 12px 8px !important; /* More padding for larger text */
         }
-        /* Align checkboxes with table rows - improved */
+        /* Make checkboxes SMALLER to match form row height */
         div[data-testid="stVerticalBlock"] > div:has(div[data-testid="stCheckbox"]) {
             display: flex;
             align-items: center;
-            min-height: 52px; /* Match row height with larger text */
-            padding-top: 0px;
-            margin-bottom: 0px;
+            height: 52px; /* Match row height */
+            padding: 0;
+            margin: 0;
         }
-        /* Ensure checkbox is vertically centered */
+        /* Smaller checkbox */
         div[data-testid="stCheckbox"] {
             display: flex;
             align-items: center;
-            min-height: 52px;
+            height: 52px;
+            padding: 0;
+            margin: 0;
         }
-        /* Remove extra spacing */
         div[data-testid="stCheckbox"] > label {
-            margin-bottom: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            height: 100%;
+        }
+        /* Scale down checkbox size */
+        div[data-testid="stCheckbox"] input[type="checkbox"] {
+            transform: scale(0.8); /* Smaller checkbox */
+            margin: 0;
         }
         </style>
         """, unsafe_allow_html=True)
