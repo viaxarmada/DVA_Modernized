@@ -778,96 +778,87 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
     )
     
     return fig
-    """Create interactive 3D box with product fill visualization"""
-    # Create box wireframe
-    x = [0, length, length, 0, 0, length, length, 0]
-    y = [0, 0, width, width, 0, 0, width, width]
-    z = [0, 0, 0, 0, height, height, height, height]
+
+def create_3d_volume_preview(length, width, height, product_volume_pct, dimension_unit='inches'):
+    """Create 3D Volume Preview for Analysis section (original design - cleaner, no labels)"""
     
-    # Define the 12 edges of the box
-    edges = [
-        [0,1], [1,2], [2,3], [3,0],  # bottom
-        [4,5], [5,6], [6,7], [7,4],  # top
-        [0,4], [1,5], [2,6], [3,7]   # vertical
+    # Determine color based on efficiency
+    if product_volume_pct >= 85:
+        box_color = '#10b981'  # Green
+    elif product_volume_pct >= 75:
+        box_color = '#3b82f6'  # Blue
+    elif product_volume_pct >= 60:
+        box_color = '#f59e0b'  # Orange
+    else:
+        box_color = '#ef4444'  # Red
+    
+    # Define vertices of box (centered at origin)
+    l, w, h = length/2, width/2, height/2
+    vertices = [
+        [-l, -w, -h], [l, -w, -h], [l, w, -h], [-l, w, -h],  # Bottom
+        [-l, -w, h], [l, -w, h], [l, w, h], [-l, w, h]   # Top
     ]
     
-    # Create traces for box edges
-    edge_traces = []
+    # Define edges
+    edges = [
+        [0,1], [1,2], [2,3], [3,0],  # Bottom
+        [4,5], [5,6], [6,7], [7,4],  # Top
+        [0,4], [1,5], [2,6], [3,7]   # Vertical
+    ]
+    
+    fig = go.Figure()
+    
+    # Draw clean edges (no annotations)
     for edge in edges:
-        edge_traces.append(go.Scatter3d(
-            x=[x[edge[0]], x[edge[1]]],
-            y=[y[edge[0]], y[edge[1]]],
-            z=[z[edge[0]], z[edge[1]]],
+        v1, v2 = vertices[edge[0]], vertices[edge[1]]
+        fig.add_trace(go.Scatter3d(
+            x=[v1[0], v2[0]],
+            y=[v1[1], v2[1]],
+            z=[v1[2], v2[2]],
             mode='lines',
-            line=dict(color='rgba(96, 165, 250, 0.6)', width=3),
-            hoverinfo='skip',
-            showlegend=False
+            line=dict(color=box_color, width=4),
+            showlegend=False,
+            hoverinfo='skip'
         ))
     
-    # Create filled product volume (as a box inside)
-    fill_height = height * (product_volume_pct / 100)
+    # Add semi-transparent faces
+    faces_i = [0, 0, 0, 0, 4, 4]
+    faces_j = [1, 3, 4, 1, 5, 7]
+    faces_k = [2, 7, 5, 5, 6, 6]
     
-    # Product volume mesh
-    product_trace = go.Mesh3d(
-        x=[0, length, length, 0, 0, length, length, 0],
-        y=[0, 0, width, width, 0, 0, width, width],
-        z=[0, 0, 0, 0, fill_height, fill_height, fill_height, fill_height],
-        i=[0, 0, 0, 0, 4, 4, 2, 2, 1, 1],
-        j=[1, 2, 4, 3, 5, 6, 6, 3, 5, 2],
-        k=[2, 3, 5, 4, 6, 7, 7, 7, 6, 6],
-        opacity=0.7,
-        color='#3b82f6',
-        flatshading=True,
-        hovertemplate=f'Fill Level: {product_volume_pct:.1f}%<extra></extra>',
-        name='Product Volume'
-    )
-    
-    # Combine all traces
-    fig = go.Figure(data=edge_traces + [product_trace])
+    fig.add_trace(go.Mesh3d(
+        x=[v[0] for v in vertices],
+        y=[v[1] for v in vertices],
+        z=[v[2] for v in vertices],
+        i=faces_i,
+        j=faces_j,
+        k=faces_k,
+        color=box_color,
+        opacity=0.2,
+        showlegend=False,
+        hoverinfo='skip'
+    ))
     
     fig.update_layout(
         scene=dict(
-            xaxis=dict(
-                title=dict(text=f'Length ({dimension_unit})', font=dict(color='#94a3b8')),
-                backgroundcolor="rgba(0,0,0,0)",
-                gridcolor="rgba(148, 163, 184, 0.2)",
-                showbackground=True,
-                zerolinecolor="rgba(148, 163, 184, 0.3)"
-            ),
-            yaxis=dict(
-                title=dict(text=f'Width ({dimension_unit})', font=dict(color='#94a3b8')),
-                backgroundcolor="rgba(0,0,0,0)",
-                gridcolor="rgba(148, 163, 184, 0.2)",
-                showbackground=True,
-                zerolinecolor="rgba(148, 163, 184, 0.3)"
-            ),
-            zaxis=dict(
-                title=dict(text=f'Height ({dimension_unit})', font=dict(color='#94a3b8')),
-                backgroundcolor="rgba(0,0,0,0)",
-                gridcolor="rgba(148, 163, 184, 0.2)",
-                showbackground=True,
-                zerolinecolor="rgba(148, 163, 184, 0.3)"
-            ),
+            xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            zaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
+            bgcolor='rgba(15, 23, 42, 0.4)',
             camera=dict(
-                eye=dict(x=1.5, y=1.5, z=1.3)
+                eye=dict(x=1.5, y=1.5, z=1.2),
+                up=dict(x=0, y=0, z=1)
             ),
             aspectmode='data'
         ),
+        height=486,
+        margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='#e2e8f0'),
-        height=486,  # Reduced by 19% total for better fit
-        margin=dict(l=0, r=0, t=30, b=0),
-        showlegend=False,
-        title=dict(
-            text=f"<b>3D Box Preview</b> - {product_volume_pct:.1f}% Filled",
-            font=dict(size=16, color='#e2e8f0'),
-            x=0.5,
-            xanchor='center'
-        )
+        showlegend=False
     )
     
     return fig
+
 
 def create_volume_comparison_chart(box_volume, product_volume, unit='cubic inches'):
     """Create horizontal stacked bar chart for volume comparison"""
@@ -1383,11 +1374,9 @@ def create_new_project():
     st.session_state.project_description = 'Project description here'
     st.session_state.contact_info = 'contact@email.com'
     
-    # Clear/reset calculator input fields
-    if 'product_weight' in st.session_state:
-        del st.session_state.product_weight
-    if 'product_quantity' in st.session_state:
-        del st.session_state.product_quantity
+    # Clear/reset calculator input fields to 0
+    st.session_state.product_weight = 0.0  # Reset to 0 instead of delete
+    st.session_state.product_quantity = 1  # Reset to 1 (default)
     
     # Clear calculated values
     if 'primary_volume_mm3' in st.session_state:
@@ -1395,13 +1384,10 @@ def create_new_project():
     if 'total_product_volume_mm3' in st.session_state:
         del st.session_state.total_product_volume_mm3
     
-    # Clear box dimension fields
-    if 'box_length' in st.session_state:
-        del st.session_state.box_length
-    if 'box_width' in st.session_state:
-        del st.session_state.box_width
-    if 'box_height' in st.session_state:
-        del st.session_state.box_height
+    # Clear box dimension fields to 0
+    st.session_state.box_length = 0.0
+    st.session_state.box_width = 0.0
+    st.session_state.box_height = 0.0
     
     # Clear box volume
     if 'box_volume_mm3' in st.session_state:
@@ -1706,6 +1692,13 @@ with tab1:
     
     # SECTION 1: PRIMARY PRODUCT CALCULATOR
     if st.session_state.analyzer_section == 'primary':
+        # Scroll to top of page
+        st.markdown("""
+        <script>
+        window.parent.document.querySelector('section.main').scrollTo(0, 0);
+        </script>
+        """, unsafe_allow_html=True)
+        
         # Auto-load saved primary data if available
         if 'saved_primary_data' in st.session_state and st.session_state.saved_primary_data:
             saved = st.session_state.saved_primary_data
@@ -1900,6 +1893,13 @@ with tab1:
     
     # SECTION 2: SECONDARY PACKAGING
     elif st.session_state.analyzer_section == 'secondary':
+        # Scroll to top of page
+        st.markdown("""
+        <script>
+        window.parent.document.querySelector('section.main').scrollTo(0, 0);
+        </script>
+        """, unsafe_allow_html=True)
+        
         # Auto-load saved secondary data - ALWAYS load if exists
         loaded_from_storage = False
         
@@ -2195,6 +2195,13 @@ with tab1:
     
     # SECTION 3: VOLUME ANALYSIS (FULL SCREEN VISUALIZATIONS!)
     elif st.session_state.analyzer_section == 'analysis':
+        # Scroll to top of page
+        st.markdown("""
+        <script>
+        window.parent.document.querySelector('section.main').scrollTo(0, 0);
+        </script>
+        """, unsafe_allow_html=True)
+        
         # Auto-load saved analysis data if available (comprehensive restore)
         if 'saved_analysis_data' in st.session_state and st.session_state.saved_analysis_data:
             saved = st.session_state.saved_analysis_data
@@ -2273,11 +2280,11 @@ with tab1:
             )
             st.plotly_chart(comparison_fig, use_container_width=True, key="volume_comparison_fullscreen")
             
-            # ROW 3: 3D Box Preview (FULL WIDTH, LARGE)
+            # ROW 3: 3D Volume Preview (FULL WIDTH, LARGE)
             if all(k in st.session_state for k in ['box_length', 'box_width', 'box_height']):
-                st.markdown("### 🎁 3D Box Preview")
+                st.markdown("### 📊 3D Volume Preview")
                 
-                box_3d_fig = create_3d_box_visualization(
+                box_3d_fig = create_3d_volume_preview(
                     st.session_state['box_length'],
                     st.session_state['box_width'],
                     st.session_state['box_height'],
