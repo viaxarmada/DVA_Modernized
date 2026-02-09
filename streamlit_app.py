@@ -1174,9 +1174,11 @@ def create_new_project():
     st.session_state.project_description = 'Project description here'
     st.session_state.contact_info = 'contact@email.com'
     
-    # Reset calculator input fields to 0.0
-    st.session_state.product_weight = 0.0
-    st.session_state.product_quantity = 1
+    # Clear/reset calculator input fields
+    if 'product_weight' in st.session_state:
+        del st.session_state.product_weight
+    if 'product_quantity' in st.session_state:
+        del st.session_state.product_quantity
     
     # Clear calculated values
     if 'primary_volume_mm3' in st.session_state:
@@ -1184,10 +1186,13 @@ def create_new_project():
     if 'total_product_volume_mm3' in st.session_state:
         del st.session_state.total_product_volume_mm3
     
-    # Reset box dimension fields to 0.0
-    st.session_state.box_length = 0.0
-    st.session_state.box_width = 0.0
-    st.session_state.box_height = 0.0
+    # Clear box dimension fields
+    if 'box_length' in st.session_state:
+        del st.session_state.box_length
+    if 'box_width' in st.session_state:
+        del st.session_state.box_width
+    if 'box_height' in st.session_state:
+        del st.session_state.box_height
     
     # Clear box volume
     if 'box_volume_mm3' in st.session_state:
@@ -1285,6 +1290,18 @@ def load_project(project_number):
             st.session_state.box_volume_mm3 = project['box_volume_mm3']
             st.rerun()
             break
+
+# ========== GLOBAL INITIALIZATION (BEFORE TABS) ==========
+# Initialize unit preferences (always, even if not showing)
+if 'pref_dimension_unit' not in st.session_state:
+    st.session_state.pref_dimension_unit = 'inches'
+if 'pref_weight_unit' not in st.session_state:
+    st.session_state.pref_weight_unit = 'ounces'
+if 'pref_volume_unit' not in st.session_state:
+    st.session_state.pref_volume_unit = 'cubic inches'
+
+# DO NOT initialize input fields here - let them start empty
+# Streamlit will handle them via widget keys
 
 # Create tabs
 tab1, tab2, tab3, tab4 = st.tabs(["🔬 Analyzer", "📁 Project Results", "📋 Primary Results", "⚙️ Primary Data"])
@@ -1453,27 +1470,6 @@ with tab1:
         
         st.markdown("---")
     
-    # Initialize unit preferences (always, even if not showing)
-    if 'pref_dimension_unit' not in st.session_state:
-        st.session_state.pref_dimension_unit = 'inches'
-    if 'pref_weight_unit' not in st.session_state:
-        st.session_state.pref_weight_unit = 'ounces'
-    if 'pref_volume_unit' not in st.session_state:
-        st.session_state.pref_volume_unit = 'cubic inches'
-    
-    # Initialize input fields to persist values across navigation
-    if 'product_weight' not in st.session_state:
-        st.session_state.product_weight = 0.0
-    if 'box_length' not in st.session_state:
-        st.session_state.box_length = 0.0
-    if 'box_width' not in st.session_state:
-        st.session_state.box_width = 0.0
-    if 'box_height' not in st.session_state:
-        st.session_state.box_height = 0.0
-    if 'product_quantity' not in st.session_state:
-        st.session_state.product_quantity = 1
-    
-
     
     
     # SECTION 1: PRIMARY PRODUCT CALCULATOR
@@ -1489,7 +1485,6 @@ with tab1:
             weight = st.number_input(
                 f"Weight of Water ({weight_unit})",
                 min_value=0.0,
-                value=0.0,  # Default to 0.0 instead of None
                 step=0.1,
                 format="%.2f",
                 help=f"Enter weight in {weight_unit}",
@@ -1597,7 +1592,6 @@ with tab1:
                     min_value=1,
                     max_value=999,
                     step=1,
-                    value=1,
                     key="product_quantity",
                     label_visibility="collapsed"
                 )
@@ -1659,7 +1653,6 @@ with tab1:
             box_length = st.number_input(
                 f"Length ({dimension_unit})",
                 min_value=0.0,
-                value=0.0,  # Default to 0.0
                 step=0.1,
                 format="%.2f",
                 key="box_length"
@@ -1668,7 +1661,6 @@ with tab1:
             box_width = st.number_input(
                 f"Width ({dimension_unit})",
                 min_value=0.0,
-                value=0.0,  # Default to 0.0
                 step=0.1,
                 format="%.2f",
                 key="box_width"
@@ -1677,7 +1669,6 @@ with tab1:
             box_height = st.number_input(
                 f"Height ({dimension_unit})",
                 min_value=0.0,
-                value=0.0,  # Default to 0.0
                 step=0.1,
                 format="%.2f",
                 key="box_height"
@@ -2615,9 +2606,9 @@ with tab4:
 # Footer
 st.markdown("---")
 st.markdown("""
-<div style='text-align: center; color: #90caf9; padding: 20px;'>
-    <p><strong>Displacement Volume Analyzer v1.0</strong></p>
-    <p>Developed by <strong>Yuttana Chiaravalloti</strong>. All rights reserved.</p>
-    <p>Built with precision using Python and Streamlit | Where science meets simplicity 🔬</p>
+<div style='text-align: left; color: #90caf9; padding: 10px; line-height: 1.2;'>
+    <p style='margin: 0 0 4px 0;'><strong>Displacement Volume Analyzer v1.0</strong></p>
+    <p style='margin: 0 0 4px 0;'>Developed by <strong>Yuttana Chiaravalloti</strong>. All rights reserved.</p>
+    <p style='margin: 0;'>Built with precision using Python and Streamlit | Where science meets simplicity 🔬</p>
 </div>
 """, unsafe_allow_html=True)
