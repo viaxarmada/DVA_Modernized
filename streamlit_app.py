@@ -1155,12 +1155,14 @@ with header_col2:
     
     .animated-title {
         display: inline-block;
+        color: #e2e8f0 !important;
     }
     
     .animated-title span {
         display: inline-block;
         opacity: 0;
         animation: fadeInLetter 0.3s ease-in-out forwards;
+        color: #e2e8f0 !important;
     }
     
     /* Individual letter delays */
@@ -1197,7 +1199,7 @@ with header_col2:
     </style>
     <div style="display: flex; align-items: center; height: 100px; margin-left: -20px;">
         <div>
-            <h1 class="animated-title" style="margin: 0; padding: 0; line-height: 1.2;">
+            <h1 class="animated-title" style="margin: 0; padding: 0; line-height: 1.2; color: #e2e8f0;">
                 <span>D</span><span>i</span><span>s</span><span>p</span><span>l</span><span>a</span><span>c</span><span>e</span><span>m</span><span>e</span><span>n</span><span>t</span><span> </span><span>V</span><span>o</span><span>l</span><span>u</span><span>m</span><span>e</span><span> </span><span>A</span><span>n</span><span>a</span><span>l</span><span>y</span><span>z</span><span>e</span><span>r</span>
             </h1>
             <p style="margin: 0; padding: 0; font-size: 0.75rem; color: #94a3b8; font-style: italic;">
@@ -1333,6 +1335,13 @@ def create_new_project():
         del st.session_state.saved_secondary_data
     if 'saved_analysis_data' in st.session_state:
         del st.session_state.saved_analysis_data
+    
+    # Delete persistent analysis data file
+    if os.path.exists('dva_analysis_data.json'):
+        try:
+            os.remove('dva_analysis_data.json')
+        except Exception:
+            pass  # Silent fail
     
     # Rerun to refresh display
     st.rerun()
@@ -1806,7 +1815,7 @@ with tab1:
     
     # SECTION 2: SECONDARY PACKAGING
     elif st.session_state.analyzer_section == 'secondary':
-        # Auto-load saved secondary data if available
+        # Auto-load saved secondary data from session state if available
         if 'saved_secondary_data' in st.session_state and st.session_state.saved_secondary_data:
             saved = st.session_state.saved_secondary_data
             if 'box_length' not in st.session_state or st.session_state.box_length == 0.0:
@@ -1817,6 +1826,32 @@ with tab1:
                 st.session_state.box_height = saved.get('box_height', 0.0)
             if 'box_volume_mm3' not in st.session_state:
                 st.session_state.box_volume_mm3 = saved.get('box_volume_mm3', 0)
+        
+        # Also try to load from persistent file if available
+        elif os.path.exists('dva_analysis_data.json'):
+            try:
+                with open('dva_analysis_data.json', 'r') as f:
+                    file_data = json.load(f)
+                    # Load box dimensions from file if not already set
+                    if 'box_length' not in st.session_state or st.session_state.box_length == 0.0:
+                        st.session_state.box_length = file_data.get('box_length', 0.0)
+                    if 'box_width' not in st.session_state or st.session_state.box_width == 0.0:
+                        st.session_state.box_width = file_data.get('box_width', 0.0)
+                    if 'box_height' not in st.session_state or st.session_state.box_height == 0.0:
+                        st.session_state.box_height = file_data.get('box_height', 0.0)
+                    if 'box_volume_mm3' not in st.session_state:
+                        st.session_state.box_volume_mm3 = file_data.get('box_volume_mm3', 0)
+                    # Also restore other data
+                    if 'product_weight' not in st.session_state or st.session_state.product_weight == 0.0:
+                        st.session_state.product_weight = file_data.get('product_weight', 0.0)
+                    if 'product_quantity' not in st.session_state or st.session_state.product_quantity == 1:
+                        st.session_state.product_quantity = file_data.get('product_quantity', 1)
+                    if 'primary_volume_mm3' not in st.session_state:
+                        st.session_state.primary_volume_mm3 = file_data.get('primary_volume_mm3', 0)
+                    if 'total_product_volume_mm3' not in st.session_state:
+                        st.session_state.total_product_volume_mm3 = file_data.get('total_product_volume_mm3', 0)
+            except Exception as e:
+                pass  # Silent fail if file doesn't exist or is corrupted
         
         st.markdown("## 📦 Secondary Packaging Calculator")
         
@@ -2149,7 +2184,7 @@ with tab1:
             st.markdown("")  # Small spacing
             if st.button("💾 Save Analysis Data", use_container_width=True, type="secondary", key="save_analysis_data"):
                 # Save complete analysis data including box dimensions
-                st.session_state.saved_analysis_data = {
+                analysis_data = {
                     'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0),
                     'box_volume_mm3': st.session_state.get('box_volume_mm3', 0),
                     'total_product_volume_mm3': st.session_state.get('total_product_volume_mm3', 0),
@@ -2161,9 +2196,21 @@ with tab1:
                     'volume_efficiency': volume_efficiency_percentage,
                     'pref_dimension_unit': st.session_state.pref_dimension_unit,
                     'pref_volume_unit': st.session_state.pref_volume_unit,
-                    'pref_weight_unit': st.session_state.pref_weight_unit
+                    'pref_weight_unit': st.session_state.pref_weight_unit,
+                    'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 }
-                st.success("✅ Analysis data saved!")
+                
+                # Save to session state
+                st.session_state.saved_analysis_data = analysis_data
+                
+                # Save to persistent file
+                try:
+                    with open('dva_analysis_data.json', 'w') as f:
+                        json.dump(analysis_data, f, indent=2)
+                    st.success("✅ Analysis data saved to file and session!")
+                except Exception as e:
+                    st.warning(f"⚠️ Saved to session but file save failed: {e}")
+                
                 time.sleep(0.5)
                 st.rerun()
             
