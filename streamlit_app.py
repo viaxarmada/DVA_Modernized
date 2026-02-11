@@ -2770,158 +2770,219 @@ with tab2:
                         from reportlab.lib.units import inch
                         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image as RLImage
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+                        from reportlab.graphics.shapes import Drawing, Rect, Line, Polygon, String, Group
+                        from reportlab.graphics import renderPDF
                         from io import BytesIO
-                        import warnings
-                        import matplotlib
-                        matplotlib.use('Agg')
-                        import matplotlib.pyplot as plt
-                        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
-                        # ── helper: render the DVA logo as a PNG ──────────────────────────
-                        def render_logo_png():
-                            """Use dva_logo.png if present; otherwise render a branded header"""
-                            # If the real logo file exists on disk, embed it directly
-                            if os.path.exists('dva_logo.png'):
-                                with open('dva_logo.png', 'rb') as f:
-                                    buf = BytesIO(f.read())
-                                buf.seek(0)
-                                return buf, True   # (buf, is_real_logo)
+                        # ── Pure ReportLab 3D isometric box drawing ───────────────────────
+                        def make_3d_box_drawing(length, width, height, efficiency_pct,
+                                                draw_w=3.5*inch, draw_h=2.5*inch):
+                            """
+                            Draw an isometric 3D box with liquid fill using pure ReportLab.
+                            Blue wireframe = secondary packaging
+                            Green fill     = primary product (liquid level)
+                            """
+                            d = Drawing(draw_w, draw_h)
 
-                            # Fallback: draw branded header with matplotlib
-                            fig, ax = plt.subplots(figsize=(7.5, 0.9),
-                                                   facecolor='#0f172a')
-                            ax.set_facecolor('#0f172a')
-                            ax.set_xlim(0, 10)
-                            ax.set_ylim(0, 1)
-                            ax.axis('off')
+                            # Dark background
+                            d.add(Rect(0, 0, draw_w, draw_h,
+                                      fillColor=colors.HexColor('#0f172a'),
+                                      strokeColor=None))
 
-                            # Left accent bar
-                            ax.add_patch(plt.Rectangle((0, 0.05), 0.08, 0.9,
-                                                        color='#3b82f6', zorder=3))
-                            # Microscope icon
-                            ax.text(0.22, 0.5, '🔬', fontsize=28,
-                                    va='center', ha='left')
-                            # Main title
-                            ax.text(0.72, 0.68,
-                                    'Displacement Volume Analyzer',
-                                    color='white', fontsize=15,
-                                    fontweight='bold', va='center', ha='left')
-                            # Subtitle
-                            ax.text(0.72, 0.28,
-                                    "Archimedes' Principle  |  Water at 4°C (1 g/mL)",
-                                    color='#94a3b8', fontsize=7.5,
-                                    va='center', ha='left')
-                            # Version
-                            ax.text(9.95, 0.5, 'v1.0',
-                                    color='#3b82f6', fontsize=8,
-                                    fontweight='bold', va='center', ha='right')
-                            # Bottom border
-                            ax.axhline(0.03, xmin=0,   xmax=0.6,
-                                       color='#3b82f6', linewidth=2)
-                            ax.axhline(0.03, xmin=0.6, xmax=1.0,
-                                       color='#10b981', linewidth=2)
+                            # Isometric projection parameters
+                            # Map 3D (x=length, y=width, z=height) → 2D screen
+                            # Origin sits at bottom-centre of drawing
+                            scale  = min(draw_w, draw_h) / (max(length, width, height) * 2.6)
+                            ox     = draw_w * 0.38   # 2D origin x
+                            oy     = draw_h * 0.22   # 2D origin y
 
-                            buf = BytesIO()
-                            with warnings.catch_warnings():
-                                warnings.simplefilter('ignore')
-                                plt.savefig(buf, format='png', dpi=150,
-                                            facecolor='#0f172a',
-                                            bbox_inches='tight', pad_inches=0.05)
-                            plt.close(fig)
-                            buf.seek(0)
-                            return buf, False
+                            # Isometric unit vectors (classic 30° iso)
+                            import math
+                            ax_  = (math.cos(math.radians(30))  * scale,
+                                    math.sin(math.radians(30))  * scale)   # X axis (length)
+                            ay_  = (-math.cos(math.radians(30)) * scale,
+                                    math.sin(math.radians(30))  * scale)   # Y axis (width)
+                            az_  = (0, scale)                               # Z axis (height)
 
-                        # ── helper: render 3D box + liquid fill to PNG bytes ──────────────
-                        def render_3d_box_png(length, width, height, efficiency_pct):
-                            fig = plt.figure(figsize=(4.5, 3.2), facecolor='#0f172a')
-                            ax  = fig.add_subplot(111, projection='3d', facecolor='#0f172a')
+                            def iso(x, y, z):
+                                """3D → 2D isometric"""
+                                sx = ox + x*ax_[0] + y*ay_[0]
+                                sy = oy + x*ax_[1] + y*ay_[1] + z*az_[1]
+                                return sx, sy
 
-                            l, w, h = length, width, height
-                            fill_h  = h * (efficiency_pct / 100)
+                            def box_faces(lx, ly, lz, fill_col, stroke_col, fill_alpha=0.25):
+                                """Draw three visible iso faces of a box at origin"""
+                                # 8 corners
+                                c = [iso(0,0,0), iso(lx,0,0), iso(lx,ly,0), iso(0,ly,0),
+                                     iso(0,0,lz), iso(lx,0,lz), iso(lx,ly,lz), iso(0,ly,lz)]
 
-                            # Helper: draw a rectangular prism wireframe
-                            def draw_box_edges(ax, lx, ly, lz, x0=0, y0=0, z0=0, color='white', lw=1.2):
-                                corners = [
-                                    [x0,    y0,    z0   ], [x0+lx, y0,    z0   ],
-                                    [x0+lx, y0+ly, z0   ], [x0,    y0+ly, z0   ],
-                                    [x0,    y0,    z0+lz], [x0+lx, y0,    z0+lz],
-                                    [x0+lx, y0+ly, z0+lz], [x0,   y0+ly, z0+lz],
-                                ]
-                                edges = [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),(6,7),(7,4),
+                                fc = colors.HexColor(fill_col)
+                                sc = colors.HexColor(stroke_col)
+
+                                # Bottom face (always draw for reference)
+                                bot = [c[0][0],c[0][1], c[1][0],c[1][1],
+                                       c[2][0],c[2][1], c[3][0],c[3][1]]
+                                d.add(Polygon(bot,
+                                             fillColor=colors.HexColor(fill_col),
+                                             strokeColor=sc, strokeWidth=0.8,
+                                             fillOpacity=fill_alpha*0.5))
+
+                                # Front face (y=0 plane)
+                                front = [c[0][0],c[0][1], c[1][0],c[1][1],
+                                         c[5][0],c[5][1], c[4][0],c[4][1]]
+                                d.add(Polygon(front,
+                                             fillColor=fc, strokeColor=sc, strokeWidth=0.8,
+                                             fillOpacity=fill_alpha*0.8))
+
+                                # Right face (x=lx plane)
+                                right = [c[1][0],c[1][1], c[2][0],c[2][1],
+                                         c[6][0],c[6][1], c[5][0],c[5][1]]
+                                d.add(Polygon(right,
+                                             fillColor=fc, strokeColor=sc, strokeWidth=0.8,
+                                             fillOpacity=fill_alpha*0.6))
+
+                                # Top face
+                                top = [c[4][0],c[4][1], c[5][0],c[5][1],
+                                       c[6][0],c[6][1], c[7][0],c[7][1]]
+                                d.add(Polygon(top,
+                                             fillColor=fc, strokeColor=sc, strokeWidth=0.8,
+                                             fillOpacity=fill_alpha*0.9))
+
+                                # Wireframe edges
+                                edges = [(0,1),(1,2),(2,3),(3,0),
+                                         (4,5),(5,6),(6,7),(7,4),
                                          (0,4),(1,5),(2,6),(3,7)]
                                 for a, b in edges:
-                                    ax.plot3D(*zip(corners[a], corners[b]), color=color, linewidth=lw)
+                                    d.add(Line(c[a][0],c[a][1], c[b][0],c[b][1],
+                                               strokeColor=sc, strokeWidth=1.2))
 
-                            # Helper: draw filled faces of a prism
-                            def draw_box_faces(ax, lx, ly, lz, x0=0, y0=0, z0=0, facecolor='blue', alpha=0.18):
-                                x1,y1,z1 = x0+lx, y0+ly, z0+lz
-                                faces = [
-                                    [[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0]],  # bottom
-                                    [[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],  # top
-                                    [[x0,y0,z0],[x1,y0,z0],[x1,y0,z1],[x0,y0,z1]],  # front
-                                    [[x0,y1,z0],[x1,y1,z0],[x1,y1,z1],[x0,y1,z1]],  # back
-                                    [[x0,y0,z0],[x0,y1,z0],[x0,y1,z1],[x0,y0,z1]],  # left
-                                    [[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1]],  # right
-                                ]
-                                poly = Poly3DCollection(faces, alpha=alpha, linewidths=0)
-                                poly.set_facecolor(facecolor)
-                                ax.add_collection3d(poly)
+                            # Draw blue box (full size)
+                            box_faces(length, width, height,
+                                      fill_col='#1e3a5f', stroke_col='#3b82f6',
+                                      fill_alpha=0.5)
 
-                            # Blue box wireframe + faint faces
-                            draw_box_faces(ax, l, w, h, facecolor='#3b82f6', alpha=0.12)
-                            draw_box_edges(ax, l, w, h, color='#3b82f6', lw=1.5)
+                            # Draw green liquid fill
+                            fill_h = height * (efficiency_pct / 100)
+                            if fill_h > 0.01:
+                                box_faces(length, width, fill_h,
+                                          fill_col='#064e3b', stroke_col='#10b981',
+                                          fill_alpha=0.7)
 
-                            # Green liquid fill
-                            if fill_h > 0:
-                                draw_box_faces(ax, l, w, fill_h, facecolor='#10b981', alpha=0.45)
-                                draw_box_edges(ax, l, w, fill_h, color='#10b981', lw=1.0)
+                            # ── Dimension labels ─────────────────────────────────────────
+                            label_col = colors.HexColor('#cbd5e1')
+                            fs = 6.5
 
-                            # Dimension tick labels on axes
-                            ax.set_xlim(0, l);  ax.set_ylim(0, w);  ax.set_zlim(0, h)
-                            tick_kw = dict(color='white', fontsize=6)
+                            # Length label (along X axis, bottom)
+                            lx_mid = iso(length/2, 0, 0)
+                            d.add(String(lx_mid[0], lx_mid[1] - 11,
+                                         f'L: {length:.1f}"',
+                                         fontSize=fs, fillColor=label_col,
+                                         textAnchor='middle'))
 
-                            # X ticks (length)
-                            x_ticks = np.linspace(0, l, 6)
-                            ax.set_xticks(x_ticks)
-                            ax.set_xticklabels([f'{v:.1f}"' for v in x_ticks], **tick_kw)
+                            # Width label (along Y axis, bottom)
+                            wy_mid = iso(0, width/2, 0)
+                            d.add(String(wy_mid[0] - 6, wy_mid[1] - 8,
+                                         f'W: {width:.1f}"',
+                                         fontSize=fs, fillColor=label_col,
+                                         textAnchor='middle'))
 
-                            # Y ticks (width)
-                            y_ticks = np.linspace(0, w, 6)
-                            ax.set_yticks(y_ticks)
-                            ax.set_yticklabels([f'{v:.1f}"' for v in y_ticks], **tick_kw)
+                            # Height label (left side, vertical mid)
+                            hz_mid = iso(0, 0, height/2)
+                            d.add(String(hz_mid[0] - 14, hz_mid[1] - 3,
+                                         f'H: {height:.1f}"',
+                                         fontSize=fs, fillColor=label_col,
+                                         textAnchor='middle'))
 
-                            # Z ticks (height)
-                            z_ticks = np.linspace(0, h, 6)
-                            ax.set_zticks(z_ticks)
-                            ax.set_zticklabels([f'{v:.1f}"' for v in z_ticks], **tick_kw)
+                            # Liquid level label
+                            if fill_h > 0.5:
+                                fl_pt = iso(length/2, 0, fill_h)
+                                d.add(String(fl_pt[0] + 4, fl_pt[1] + 2,
+                                             f'{efficiency_pct:.0f}% filled',
+                                             fontSize=fs,
+                                             fillColor=colors.HexColor('#10b981'),
+                                             textAnchor='start'))
 
-                            # Axis labels
-                            ax.set_xlabel('Length', color='white', fontsize=7, labelpad=4)
-                            ax.set_ylabel('Width',  color='white', fontsize=7, labelpad=4)
-                            ax.set_zlabel('Height', color='white', fontsize=7, labelpad=4)
+                            # Legend (top-left corner of drawing)
+                            d.add(Rect(6, draw_h-16, 8, 7,
+                                       fillColor=colors.HexColor('#1e3a5f'),
+                                       strokeColor=colors.HexColor('#3b82f6'),
+                                       strokeWidth=0.8))
+                            d.add(String(17, draw_h-15, 'Secondary Pkg',
+                                         fontSize=5.5,
+                                         fillColor=colors.HexColor('#3b82f6')))
 
-                            # Tick pane colours
-                            for pane in [ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane]:
-                                pane.fill = False
-                                pane.set_edgecolor('rgba(255,255,255,0.1)')
+                            d.add(Rect(6, draw_h-27, 8, 7,
+                                       fillColor=colors.HexColor('#064e3b'),
+                                       strokeColor=colors.HexColor('#10b981'),
+                                       strokeWidth=0.8))
+                            d.add(String(17, draw_h-26, 'Product Volume',
+                                         fontSize=5.5,
+                                         fillColor=colors.HexColor('#10b981')))
 
-                            ax.tick_params(colors='white', labelsize=6)
-                            ax.xaxis.line.set_color('white')
-                            ax.yaxis.line.set_color('white')
-                            ax.zaxis.line.set_color('white')
+                            return d
 
-                            ax.view_init(elev=22, azim=35)
-                            import warnings
-                            with warnings.catch_warnings():
-                                warnings.simplefilter("ignore")
-                                plt.tight_layout(pad=0.3)
+                        # ── Logo header (pure ReportLab) ──────────────────────────────────
+                        def make_logo_header(W):
+                            """
+                            Build logo header as a ReportLab Table.
+                            Uses dva_logo.png if on disk, else pure vector header.
+                            """
+                            # Try real logo first
+                            logo_cell = None
+                            if os.path.exists('dva_logo.png'):
+                                try:
+                                    logo_cell = RLImage('dva_logo.png',
+                                                        width=1.4*inch, height=0.42*inch)
+                                except Exception:
+                                    logo_cell = None
 
-                            buf = BytesIO()
-                            plt.savefig(buf, format='png', dpi=150,
-                                        facecolor='#0f172a', bbox_inches='tight')
-                            plt.close(fig)
-                            buf.seek(0)
-                            return buf
+                            title_style_hdr = ParagraphStyle(
+                                'HDR_T', parent=getSampleStyleSheet()['Normal'],
+                                fontSize=13, fontName='Helvetica-Bold',
+                                textColor=colors.HexColor('#2196f3'),
+                                spaceAfter=1)
+                            sub_style_hdr = ParagraphStyle(
+                                'HDR_S', parent=getSampleStyleSheet()['Normal'],
+                                fontSize=7, textColor=colors.HexColor('#64748b'),
+                                spaceAfter=0)
+                            ver_style_hdr = ParagraphStyle(
+                                'HDR_V', parent=getSampleStyleSheet()['Normal'],
+                                fontSize=7, textColor=colors.HexColor('#3b82f6'),
+                                fontName='Helvetica-Bold',
+                                alignment=TA_RIGHT)
+
+                            title_para = Paragraph('Displacement Volume Analyzer', title_style_hdr)
+                            sub_para   = Paragraph("Archimedes' Principle  |  Water at 4°C (1 g/mL)", sub_style_hdr)
+                            ver_para   = Paragraph('v1.0', ver_style_hdr)
+
+                            if logo_cell:
+                                left_cell  = logo_cell
+                                mid_cell   = [title_para, Spacer(1, 1), sub_para]
+                                right_cell = ver_para
+                                hdr = Table([[left_cell, mid_cell, right_cell]],
+                                             colWidths=[1.5*inch, W-2.2*inch, 0.7*inch])
+                            else:
+                                # Pure text header — accent bar via a thin coloured table
+                                accent = Table([['']], colWidths=[0.06*inch])
+                                accent.setStyle(TableStyle([
+                                    ('BACKGROUND', (0,0),(0,0), colors.HexColor('#3b82f6')),
+                                    ('TOPPADDING',(0,0),(0,0),0),
+                                    ('BOTTOMPADDING',(0,0),(0,0),0),
+                                ]))
+                                mid_cell   = [title_para, Spacer(1,1), sub_para]
+                                right_cell = ver_para
+                                hdr = Table([[accent, mid_cell, right_cell]],
+                                             colWidths=[0.15*inch, W-0.85*inch, 0.7*inch])
+
+                            hdr.setStyle(TableStyle([
+                                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+                                ('LEFTPADDING',   (0,0), (-1,-1), 4),
+                                ('RIGHTPADDING',  (0,0), (-1,-1), 4),
+                                ('TOPPADDING',    (0,0), (-1,-1), 4),
+                                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                                ('BACKGROUND',    (0,0), (-1,-1), colors.HexColor('#0f172a')),
+                            ]))
+                            return hdr
 
                         # ── PDF setup ────────────────────────────────────────────────────
                         buffer = BytesIO()
@@ -2978,15 +3039,6 @@ with tab2:
                                 ('VALIGN',     (0,0), (-1,-1), 'TOP'),
                             ])
 
-                        # ── render logo once ────────────────────────────────────────────
-                        logo_buf, is_real_logo = render_logo_png()
-                        if is_real_logo:
-                            # Real logo: keep aspect ratio, max width
-                            logo_img = RLImage(logo_buf, width=2.0*inch, height=0.6*inch)
-                        else:
-                            # Rendered header: full width banner
-                            logo_img = RLImage(logo_buf, width=W, height=0.72*inch)
-
                         # ── per project ──────────────────────────────────────────────────
                         for idx, project in enumerate(st.session_state.loaded_projects_overview):
                             if idx > 0:
@@ -2994,38 +3046,10 @@ with tab2:
 
                             # ── Header: logo + title + date strip ───────────────────────
                             report_date = datetime.now().strftime('%B %d, %Y  ·  %I:%M %p')
-
-                            if is_real_logo:
-                                # Real logo: logo left, title+subtitle right
-                                title_para = Paragraph(
-                                    'Displacement Volume Analyzer',
-                                    ParagraphStyle('HT', parent=styles['Normal'],
-                                                   fontSize=14, fontName='Helvetica-Bold',
-                                                   textColor=colors.HexColor('#2196f3')))
-                                sub_para = Paragraph(
-                                    "Archimedes' Principle  |  Water at 4°C (1 g/mL)",
-                                    ParagraphStyle('HS', parent=styles['Normal'],
-                                                   fontSize=8,
-                                                   textColor=colors.HexColor('#555555')))
-                                hdr = Table(
-                                    [[logo_img, [title_para, Spacer(1,2), sub_para]]],
-                                    colWidths=[2.2*inch, W - 2.2*inch]
-                                )
-                                hdr.setStyle(TableStyle([
-                                    ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
-                                    ('LEFTPADDING',   (0,0), (-1,-1), 0),
-                                    ('RIGHTPADDING',  (0,0), (-1,-1), 0),
-                                    ('TOPPADDING',    (0,0), (-1,-1), 0),
-                                    ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-                                ]))
-                                elements.append(hdr)
-                            else:
-                                # Rendered full-width banner
-                                elements.append(logo_img)
-
+                            elements.append(make_logo_header(W))
                             elements.append(tiny_spacer())
 
-                            # Date strip (always shown)
+                            # Date strip
                             date_strip_data = [[
                                 Paragraph('Project Analysis Report',
                                           ParagraphStyle('LS', parent=styles['Normal'],
@@ -3125,14 +3149,14 @@ with tab2:
                                     ('GRID',       (0,0), (-1,-1), 0.3, colors.HexColor('#cccccc')),
                                 ]))
 
-                                # 3D box image
+                                # 3D box drawing (pure ReportLab - no matplotlib needed)
                                 try:
                                     box_length = float(project['box_length'])
                                     box_width  = float(project['box_width'])
                                     box_height = float(project['box_height'])
-                                    img_buf = render_3d_box_png(box_length, box_width, box_height, efficiency_pct)
-                                    rl_img  = RLImage(img_buf, width=3.6*inch, height=2.55*inch)
-                                    img_cell = rl_img
+                                    img_cell = make_3d_box_drawing(
+                                        box_length, box_width, box_height, efficiency_pct,
+                                        draw_w=3.5*inch, draw_h=2.5*inch)
                                 except Exception:
                                     img_cell = Paragraph("3D preview unavailable", normal_sm)
 
@@ -3215,7 +3239,7 @@ with tab2:
                         st.success("✅ PDF report generated successfully!")
 
                     except ImportError as e:
-                        st.error(f"❌ Missing library: {e}. Install with: pip install reportlab matplotlib")
+                        st.error(f"❌ Missing library: {e}. Install with: pip install reportlab")
                     except Exception as e:
                         st.error(f"❌ Error generating PDF: {str(e)}")
                 else:
