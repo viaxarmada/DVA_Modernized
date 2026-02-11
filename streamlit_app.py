@@ -7,6 +7,11 @@ from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Page configuration
 st.set_page_config(
@@ -2771,12 +2776,61 @@ with tab2:
                         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image as RLImage
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
                         from io import BytesIO
-                        import matplotlib
-                        matplotlib.use('Agg')
-                        import matplotlib.pyplot as plt
-                        from mpl_toolkits.mplot3d import Axes3D
-                        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-                        import numpy as np
+                        import warnings
+
+                        # ── helper: render the DVA logo as a PNG ──────────────────────────
+                        def render_logo_png():
+                            """Use dva_logo.png if present; otherwise render a branded header"""
+                            # If the real logo file exists on disk, embed it directly
+                            if os.path.exists('dva_logo.png'):
+                                with open('dva_logo.png', 'rb') as f:
+                                    buf = BytesIO(f.read())
+                                buf.seek(0)
+                                return buf, True   # (buf, is_real_logo)
+
+                            # Fallback: draw branded header with matplotlib
+                            fig, ax = plt.subplots(figsize=(7.5, 0.9),
+                                                   facecolor='#0f172a')
+                            ax.set_facecolor('#0f172a')
+                            ax.set_xlim(0, 10)
+                            ax.set_ylim(0, 1)
+                            ax.axis('off')
+
+                            # Left accent bar
+                            ax.add_patch(plt.Rectangle((0, 0.05), 0.08, 0.9,
+                                                        color='#3b82f6', zorder=3))
+                            # Microscope icon
+                            ax.text(0.22, 0.5, '🔬', fontsize=28,
+                                    va='center', ha='left')
+                            # Main title
+                            ax.text(0.72, 0.68,
+                                    'Displacement Volume Analyzer',
+                                    color='white', fontsize=15,
+                                    fontweight='bold', va='center', ha='left')
+                            # Subtitle
+                            ax.text(0.72, 0.28,
+                                    "Archimedes' Principle  |  Water at 4°C (1 g/mL)",
+                                    color='#94a3b8', fontsize=7.5,
+                                    va='center', ha='left')
+                            # Version
+                            ax.text(9.95, 0.5, 'v1.0',
+                                    color='#3b82f6', fontsize=8,
+                                    fontweight='bold', va='center', ha='right')
+                            # Bottom border
+                            ax.axhline(0.03, xmin=0,   xmax=0.6,
+                                       color='#3b82f6', linewidth=2)
+                            ax.axhline(0.03, xmin=0.6, xmax=1.0,
+                                       color='#10b981', linewidth=2)
+
+                            buf = BytesIO()
+                            with warnings.catch_warnings():
+                                warnings.simplefilter('ignore')
+                                plt.savefig(buf, format='png', dpi=150,
+                                            facecolor='#0f172a',
+                                            bbox_inches='tight', pad_inches=0.05)
+                            plt.close(fig)
+                            buf.seek(0)
+                            return buf, False
 
                         # ── helper: render 3D box + liquid fill to PNG bytes ──────────────
                         def render_3d_box_png(length, width, height, efficiency_pct):
@@ -2925,21 +2979,74 @@ with tab2:
                                 ('VALIGN',     (0,0), (-1,-1), 'TOP'),
                             ])
 
+                        # ── render logo once ────────────────────────────────────────────
+                        logo_buf, is_real_logo = render_logo_png()
+                        if is_real_logo:
+                            # Real logo: keep aspect ratio, max width
+                            logo_img = RLImage(logo_buf, width=2.0*inch, height=0.6*inch)
+                        else:
+                            # Rendered header: full width banner
+                            logo_img = RLImage(logo_buf, width=W, height=0.72*inch)
+
                         # ── per project ──────────────────────────────────────────────────
                         for idx, project in enumerate(st.session_state.loaded_projects_overview):
                             if idx > 0:
                                 elements.append(PageBreak())
 
-                            # ── Header ──────────────────────────────────────────────────
-                            elements.append(Paragraph("Displacement Volume Analyzer", title_style))
-                            report_date = datetime.now().strftime('%B %d, %Y  %I:%M %p')
-                            elements.append(Paragraph(f"Project Analysis Report  ·  {report_date}", sub_style))
+                            # ── Header: logo + title + date strip ───────────────────────
+                            report_date = datetime.now().strftime('%B %d, %Y  ·  %I:%M %p')
+
+                            if is_real_logo:
+                                # Real logo: logo left, title+subtitle right
+                                title_para = Paragraph(
+                                    'Displacement Volume Analyzer',
+                                    ParagraphStyle('HT', parent=styles['Normal'],
+                                                   fontSize=14, fontName='Helvetica-Bold',
+                                                   textColor=colors.HexColor('#2196f3')))
+                                sub_para = Paragraph(
+                                    "Archimedes' Principle  |  Water at 4°C (1 g/mL)",
+                                    ParagraphStyle('HS', parent=styles['Normal'],
+                                                   fontSize=8,
+                                                   textColor=colors.HexColor('#555555')))
+                                hdr = Table(
+                                    [[logo_img, [title_para, Spacer(1,2), sub_para]]],
+                                    colWidths=[2.2*inch, W - 2.2*inch]
+                                )
+                                hdr.setStyle(TableStyle([
+                                    ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
+                                    ('LEFTPADDING',   (0,0), (-1,-1), 0),
+                                    ('RIGHTPADDING',  (0,0), (-1,-1), 0),
+                                    ('TOPPADDING',    (0,0), (-1,-1), 0),
+                                    ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                                ]))
+                                elements.append(hdr)
+                            else:
+                                # Rendered full-width banner
+                                elements.append(logo_img)
+
                             elements.append(tiny_spacer())
 
-                            # thin rule
-                            rule = Table([['']], colWidths=[W])
-                            rule.setStyle(TableStyle([('LINEABOVE',(0,0),(0,0),1,colors.HexColor('#2196f3'))]))
-                            elements.append(rule)
+                            # Date strip (always shown)
+                            date_strip_data = [[
+                                Paragraph('Project Analysis Report',
+                                          ParagraphStyle('LS', parent=styles['Normal'],
+                                                         fontSize=8, textColor=colors.white,
+                                                         fontName='Helvetica-Bold')),
+                                Paragraph(report_date,
+                                          ParagraphStyle('RS', parent=styles['Normal'],
+                                                         fontSize=8,
+                                                         textColor=colors.HexColor('#94a3b8'),
+                                                         alignment=TA_RIGHT)),
+                            ]]
+                            date_strip = Table(date_strip_data, colWidths=[W*0.5, W*0.5])
+                            date_strip.setStyle(TableStyle([
+                                ('BACKGROUND',    (0,0), (-1,-1), colors.HexColor('#1e293b')),
+                                ('TOPPADDING',    (0,0), (-1,-1), 4),
+                                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                                ('LEFTPADDING',   (0,0), (-1,-1), 6),
+                                ('RIGHTPADDING',  (0,0), (-1,-1), 6),
+                            ]))
+                            elements.append(date_strip)
                             elements.append(tiny_spacer())
 
                             # ── Project Info + Primary Volume (side by side) ─────────────
