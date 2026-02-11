@@ -7,11 +7,6 @@ from datetime import datetime
 import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Page configuration
 st.set_page_config(
@@ -2777,6 +2772,10 @@ with tab2:
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
                         from io import BytesIO
                         import warnings
+                        import matplotlib
+                        matplotlib.use('Agg')
+                        import matplotlib.pyplot as plt
+                        from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
                         # ── helper: render the DVA logo as a PNG ──────────────────────────
                         def render_logo_png():
