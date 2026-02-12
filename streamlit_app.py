@@ -1636,6 +1636,20 @@ def save_current_project():
             st.session_state.project_counter = current_number
             st.warning(f"✅ Assigned new project number: {current_number}")
     
+    # Always pull unit fields from the live global preferences so the saved
+    # record matches exactly what the user sees in the UI.
+    live_weight_unit = st.session_state.get('pref_weight_unit',
+                           st.session_state.get('primary_unit', 'grams'))
+    live_dim_unit    = st.session_state.get('pref_dimension_unit',
+                           st.session_state.get('dimension_unit', 'inches'))
+    live_vol_unit    = st.session_state.get('pref_volume_unit',
+                           st.session_state.get('box_result_unit', 'cubic inches'))
+
+    # Keep session_state in sync so subsequent reads are consistent
+    st.session_state.primary_unit    = live_weight_unit
+    st.session_state.dimension_unit  = live_dim_unit
+    st.session_state.box_result_unit = live_vol_unit
+
     project_data = {
         'project_number': current_number,
         'project_name': st.session_state.get('project_name', ''),
@@ -1645,16 +1659,18 @@ def save_current_project():
         'contact': st.session_state.get('contact_info', ''),
         # Primary product data
         'weight': st.session_state.get('primary_weight', 0.0),
-        'weight_unit': st.session_state.get('primary_unit', 'grams'),
+        'weight_unit': live_weight_unit,
         'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0.0),
         'product_quantity': st.session_state.get('product_quantity', 1),
-        'total_product_volume_mm3': st.session_state.get('total_product_volume_mm3', st.session_state.get('primary_volume_mm3', 0.0)),
-        # Box data
+        'total_product_volume_mm3': st.session_state.get(
+            'total_product_volume_mm3',
+            st.session_state.get('primary_volume_mm3', 0.0)),
+        # Box data — dimensions stored as entered; unit label from live pref
         'box_length': st.session_state.get('box_length', 0.0),
-        'box_width': st.session_state.get('box_width', 0.0),
+        'box_width':  st.session_state.get('box_width',  0.0),
         'box_height': st.session_state.get('box_height', 0.0),
-        'dimension_unit': st.session_state.get('dimension_unit', 'cm'),
-        'box_result_unit': st.session_state.get('box_result_unit', 'cubic cm'),
+        'dimension_unit': live_dim_unit,
+        'box_result_unit': live_vol_unit,
         'box_volume_mm3': st.session_state.get('box_volume_mm3', 0.0),
         'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
@@ -1691,13 +1707,22 @@ def load_project(project_number):
             st.session_state.project_description = project['description']
             st.session_state.contact_info = project['contact']
             st.session_state.primary_weight = project['weight']
-            st.session_state.primary_unit = project['weight_unit']
+
+            # Restore unit fields — both the legacy keys AND the live pref_ keys
+            w_unit  = project.get('weight_unit',    'grams')
+            d_unit  = project.get('dimension_unit', 'inches')
+            v_unit  = project.get('box_result_unit','cubic inches')
+            st.session_state.primary_unit       = w_unit
+            st.session_state.pref_weight_unit   = w_unit
+            st.session_state.dimension_unit     = d_unit
+            st.session_state.pref_dimension_unit = d_unit
+            st.session_state.box_result_unit    = v_unit
+            st.session_state.pref_volume_unit   = v_unit
+
             st.session_state.primary_volume_mm3 = project['primary_volume_mm3']
             st.session_state.box_length = project['box_length']
-            st.session_state.box_width = project['box_width']
+            st.session_state.box_width  = project['box_width']
             st.session_state.box_height = project['box_height']
-            st.session_state.dimension_unit = project['dimension_unit']
-            st.session_state.box_result_unit = project['box_result_unit']
             st.session_state.box_volume_mm3 = project['box_volume_mm3']
             st.rerun()
             break
@@ -2888,8 +2913,7 @@ with tab2:
                             if p_idx > 0:
                                 elements.append(PageBreak())
 
-                            # ── Unit fields — use the single global preference ────────────
-                            # pref_volume_unit is the one unit shown everywhere in the app
+                            # Unit fields — read directly from what was saved in the project file
                             vol_unit = project.get('box_result_unit', 'cubic inches')
                             dim_unit = project.get('dimension_unit', 'inches')
                             w_unit   = project.get('weight_unit', 'grams')
@@ -3079,8 +3103,8 @@ with tab2:
                     with col2:
                         st.markdown("#### Calculation Results")
 
-                        # Single global unit — matches everything else in the app
-                        disp_vol_unit = st.session_state.get('pref_volume_unit', 'cubic inches')
+                        # Read units directly from what was saved in the project file
+                        disp_vol_unit = project.get('box_result_unit', 'cubic inches')
                         mm3_to_disp   = {
                             'cubic mm': 1, 'cubic cm': 0.001,
                             'cubic inches': 0.000061023744, 'cubic feet': 0.000000035315
@@ -3095,7 +3119,7 @@ with tab2:
 
                         st.success(f"""
                         **Primary Product:**  
-                        Weight: {project['weight']} {project['weight_unit']}  
+                        Weight: {project['weight']} {project.get('weight_unit', '')}  
                         Unit Volume: {unit_vol_disp:,.4f} {disp_vol_unit}  
                         Quantity: {qty}  
                         Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
@@ -3107,7 +3131,7 @@ with tab2:
                             eff          = (total_vol_mm3 / project['box_volume_mm3'] * 100) if project['box_volume_mm3'] > 0 else 0
                             st.info(f"""
                             **Secondary Packaging:**  
-                            Dimensions: {project['box_length']} × {project['box_width']} × {project['box_height']} {project['dimension_unit']}  
+                            Dimensions: {project['box_length']} × {project['box_width']} × {project['box_height']} {project.get('dimension_unit', '')}  
                             Box Volume: {box_vol_disp:,.4f} {disp_vol_unit}  
                             Remaining: {rem_disp:,.4f} {disp_vol_unit}  
                             Efficiency: {eff:.1f}%
@@ -3131,9 +3155,9 @@ with tab2:
             projects_with_boxes = [p for p in st.session_state.loaded_projects_overview if p.get('box_volume_mm3', 0) > 0]
             
             if projects_with_boxes:
-                # Use global unit preference instead of dropdown
-                comparison_unit = st.session_state.pref_volume_unit
-                st.info(f"ℹ️ Using **{comparison_unit}** (set in Unit Preferences)")
+                # Use the unit saved in the first project's record
+                comparison_unit = projects_with_boxes[0].get('box_result_unit', 'cubic inches')
+                st.info(f"ℹ️ Using **{comparison_unit}** (saved with project)")
                 
                 # Conversion factors from mm³
                 mm3_to_unit = {
