@@ -2773,121 +2773,114 @@ with tab2:
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
                         from io import BytesIO
 
-                        # ── Volume unit conversion: everything stored in mm³ ────────────
+                        # ── mm³ conversion table (matches app's own conversion map) ───────
                         MM3_TO = {
                             'cubic mm':     1.0,
                             'cubic cm':     0.001,
-                            'cubic inches': 1.0 / 16387.064,
-                            'cubic in':     1.0 / 16387.064,
-                            'cubic feet':   1.0 / 28316846.6,
+                            'cubic inches': 0.000061023744,
+                            'cubic feet':   0.000000035315,
                         }
-
-                        def mm3_convert(mm3_val, unit):
-                            """Convert a mm³ value to the given unit string."""
+                        def to_unit(mm3_val, unit):
                             return mm3_val * MM3_TO.get(unit, 0.001)
+                        def fmv(mm3_val, unit, d=4):
+                            return f"{to_unit(mm3_val, unit):,.{d}f}"
 
-                        def fmt(mm3_val, unit, decimals=3):
-                            """Format a mm³ value as a string in the target unit."""
-                            return f"{mm3_convert(mm3_val, unit):,.{decimals}f}"
-
-                        # ── PDF document setup ───────────────────────────────────────────
-                        buf = BytesIO()
-                        W   = 7.5 * inch   # usable page width (letter - 0.5" margins each side)
-                        doc = SimpleDocTemplate(
+                        # ── Page geometry ────────────────────────────────────────────────
+                        buf  = BytesIO()
+                        PW   = 7.5 * inch     # total usable width (letter - margins)
+                        TW   = PW / 2         # table width = 50 % of page
+                        KW   = 1.3 * inch     # key column
+                        VW   = TW - KW        # value column
+                        doc  = SimpleDocTemplate(
                             buf, pagesize=letter,
                             topMargin=0.45*inch, bottomMargin=0.45*inch,
                             leftMargin=0.5*inch,  rightMargin=0.5*inch,
                         )
                         styles = getSampleStyleSheet()
 
-                        # ── Reusable paragraph styles ────────────────────────────────────
-                        s_title = ParagraphStyle(
-                            'Title', parent=styles['Normal'],
-                            fontSize=15, fontName='Helvetica-Bold',
-                            textColor=colors.HexColor('#1565C0'),
-                            spaceAfter=1, alignment=TA_CENTER)
-                        s_sub = ParagraphStyle(
-                            'Sub', parent=styles['Normal'],
-                            fontSize=8, textColor=colors.HexColor('#546E7A'),
-                            spaceAfter=0, alignment=TA_CENTER)
-                        s_section = ParagraphStyle(
-                            'Section', parent=styles['Normal'],
-                            fontSize=9, fontName='Helvetica-Bold',
-                            textColor=colors.white,
-                            spaceAfter=0, spaceBefore=0)
-                        s_normal = ParagraphStyle(
-                            'N', parent=styles['Normal'],
-                            fontSize=8, spaceAfter=0)
-                        s_right = ParagraphStyle(
-                            'NR', parent=styles['Normal'],
-                            fontSize=8, spaceAfter=0, alignment=TA_RIGHT)
+                        # ── Paragraph styles ─────────────────────────────────────────────
+                        s_title   = ParagraphStyle('DVATitle', parent=styles['Normal'],
+                                        fontSize=14, fontName='Helvetica-Bold',
+                                        textColor=colors.HexColor('#1565C0'),
+                                        alignment=TA_CENTER, spaceAfter=1)
+                        s_sub     = ParagraphStyle('DVASub', parent=styles['Normal'],
+                                        fontSize=7.5, textColor=colors.HexColor('#546E7A'),
+                                        alignment=TA_CENTER, spaceAfter=0)
+                        s_sec     = ParagraphStyle('DVASec', parent=styles['Normal'],
+                                        fontSize=8.5, fontName='Helvetica-Bold',
+                                        textColor=colors.white,
+                                        spaceAfter=0, spaceBefore=0)
+                        s_cell    = ParagraphStyle('DVACell', parent=styles['Normal'],
+                                        fontSize=8, spaceAfter=0)
 
-                        def tiny(): return Spacer(1, 0.07*inch)
-                        def micro(): return Spacer(1, 0.04*inch)
+                        def tiny():  return Spacer(1, 0.07*inch)
+                        def micro(): return Spacer(1, 0.03*inch)
 
-                        # ── Table style helpers ──────────────────────────────────────────
-                        def key_val_style(key_bg_hex):
-                            """Style for two-column key:value tables."""
+                        # ── Key-value table style ────────────────────────────────────────
+                        def kv_style(key_bg):
                             return TableStyle([
-                                ('BACKGROUND',    (0, 0), (0, -1), colors.HexColor(key_bg_hex)),
-                                ('BACKGROUND',    (1, 0), (1, -1), colors.HexColor('#FAFAFA')),
-                                ('TEXTCOLOR',     (0, 0), (-1, -1), colors.HexColor('#212121')),
-                                ('FONTNAME',      (0, 0), (0, -1), 'Helvetica-Bold'),
-                                ('FONTNAME',      (1, 0), (1, -1), 'Helvetica'),
-                                ('FONTSIZE',      (0, 0), (-1, -1), 8),
-                                ('ALIGN',         (0, 0), (0, -1), 'RIGHT'),
-                                ('ALIGN',         (1, 0), (1, -1), 'LEFT'),
-                                ('TOPPADDING',    (0, 0), (-1, -1), 3),
-                                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-                                ('LEFTPADDING',   (0, 0), (-1, -1), 5),
-                                ('RIGHTPADDING',  (0, 0), (-1, -1), 5),
-                                ('GRID',          (0, 0), (-1, -1), 0.4,
-                                                  colors.HexColor('#CFD8DC')),
-                                ('VALIGN',        (0, 0), (-1, -1), 'TOP'),
+                                ('BACKGROUND',    (0,0),(0,-1), colors.HexColor(key_bg)),
+                                ('BACKGROUND',    (1,0),(1,-1), colors.HexColor('#FAFAFA')),
+                                ('TEXTCOLOR',     (0,0),(-1,-1), colors.HexColor('#1A1A1A')),
+                                ('FONTNAME',      (0,0),(0,-1), 'Helvetica-Bold'),
+                                ('FONTNAME',      (1,0),(1,-1), 'Helvetica'),
+                                ('FONTSIZE',      (0,0),(-1,-1), 8),
+                                ('ALIGN',         (0,0),(0,-1), 'RIGHT'),
+                                ('ALIGN',         (1,0),(1,-1), 'LEFT'),
+                                ('TOPPADDING',    (0,0),(-1,-1), 3),
+                                ('BOTTOMPADDING', (0,0),(-1,-1), 3),
+                                ('LEFTPADDING',   (0,0),(-1,-1), 5),
+                                ('RIGHTPADDING',  (0,0),(-1,-1), 5),
+                                ('GRID',          (0,0),(-1,-1), 0.4, colors.HexColor('#CFD8DC')),
+                                ('VALIGN',        (0,0),(-1,-1), 'TOP'),
                             ])
 
-                        def section_header(text, bg_hex='#1565C0'):
-                            """Coloured full-width section heading row."""
-                            t = Table([[Paragraph(text, s_section)]],
-                                      colWidths=[W])
+                        def sec_hdr(label, bg='#1565C0'):
+                            """Coloured section heading, spans table width only."""
+                            t = Table([[Paragraph(label, s_sec)]], colWidths=[TW])
                             t.setStyle(TableStyle([
-                                ('BACKGROUND',    (0,0), (0,0), colors.HexColor(bg_hex)),
-                                ('TOPPADDING',    (0,0), (0,0), 4),
-                                ('BOTTOMPADDING', (0,0), (0,0), 4),
-                                ('LEFTPADDING',   (0,0), (0,0), 8),
-                                ('RIGHTPADDING',  (0,0), (0,0), 8),
+                                ('BACKGROUND',    (0,0),(0,0), colors.HexColor(bg)),
+                                ('TOPPADDING',    (0,0),(0,0), 4),
+                                ('BOTTOMPADDING', (0,0),(0,0), 4),
+                                ('LEFTPADDING',   (0,0),(0,0), 6),
+                                ('RIGHTPADDING',  (0,0),(0,0), 6),
                             ]))
                             return t
 
-                        # ── Logo helper ──────────────────────────────────────────────────
-                        def build_logo_header():
-                            logo_cell = ''
-                            if os.path.exists('dva_logo.png'):
-                                try:
-                                    logo_cell = RLImage('dva_logo.png',
-                                                        width=1.2*inch, height=0.36*inch)
-                                except Exception:
-                                    logo_cell = ''
+                        def kv_table(rows, key_bg):
+                            """Build a key:value table at TW wide."""
+                            t = Table(rows, colWidths=[KW, VW])
+                            t.setStyle(kv_style(key_bg))
+                            return t
+
+                        # ── Logo / page header ───────────────────────────────────────────
+                        def build_header():
+                            logo_w = PW   # full width for the header bar
                             title_p = Paragraph('Displacement Volume Analyzer', s_title)
                             sub_p   = Paragraph(
                                 "Archimedes\' Principle  |  Water at 4°C (1 g/mL)", s_sub)
-                            if logo_cell:
-                                hdr = Table([[logo_cell, [title_p, micro(), sub_p], '']],
-                                            colWidths=[1.3*inch, W - 2.0*inch, 0.7*inch])
+                            if os.path.exists('dva_logo.png'):
+                                try:
+                                    logo = RLImage('dva_logo.png', width=1.1*inch, height=0.33*inch)
+                                    hdr = Table([[logo, [title_p, micro(), sub_p], '']],
+                                                colWidths=[1.2*inch, logo_w-1.9*inch, 0.7*inch])
+                                except Exception:
+                                    hdr = Table([['', [title_p, micro(), sub_p], '']],
+                                                colWidths=[0, logo_w, 0])
                             else:
                                 hdr = Table([['', [title_p, micro(), sub_p], '']],
-                                            colWidths=[0*inch, W, 0*inch])
+                                            colWidths=[0, logo_w, 0])
                             hdr.setStyle(TableStyle([
-                                ('VALIGN',        (0,0), (-1,-1), 'MIDDLE'),
-                                ('LEFTPADDING',   (0,0), (-1,-1), 0),
-                                ('RIGHTPADDING',  (0,0), (-1,-1), 0),
-                                ('TOPPADDING',    (0,0), (-1,-1), 3),
-                                ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+                                ('VALIGN',      (0,0),(-1,-1), 'MIDDLE'),
+                                ('LEFTPADDING', (0,0),(-1,-1), 0),
+                                ('RIGHTPADDING',(0,0),(-1,-1), 0),
+                                ('TOPPADDING',  (0,0),(-1,-1), 3),
+                                ('BOTTOMPADDING',(0,0),(-1,-1), 3),
                             ]))
                             return hdr
 
                         # ════════════════════════════════════════════════════════════════
-                        # Per-project pages
+                        # Build pages
                         # ════════════════════════════════════════════════════════════════
                         elements = []
 
@@ -2895,169 +2888,155 @@ with tab2:
                             if p_idx > 0:
                                 elements.append(PageBreak())
 
-                            # ── Pull saved unit fields ───────────────────────────────────
+                            # ── Unit fields — use the single global preference ────────────
+                            # pref_volume_unit is the one unit shown everywhere in the app
+                            vol_unit = project.get('box_result_unit', 'cubic inches')
+                            dim_unit = project.get('dimension_unit', 'inches')
                             w_unit   = project.get('weight_unit', 'grams')
-                            vol_unit = project.get('box_result_unit', 'cubic cm')
-                            dim_unit = project.get('dimension_unit', 'cm')
                             qty      = int(project.get('product_quantity', 1))
 
-                            # mm³ values (always stored as mm³ internally)
+                            # Volume values (always stored as mm³)
                             unit_vol_mm3  = project.get('primary_volume_mm3', 0.0)
                             total_vol_mm3 = project.get('total_product_volume_mm3', unit_vol_mm3)
                             box_vol_mm3   = project.get('box_volume_mm3', 0.0)
                             rem_mm3       = box_vol_mm3 - total_vol_mm3
                             eff_pct       = (total_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
-                            rem_pct       = 100 - eff_pct
+                            rem_pct       = 100.0 - eff_pct
 
                             # ── Page header ──────────────────────────────────────────────
-                            elements.append(build_logo_header())
+                            elements.append(build_header())
                             elements.append(micro())
 
-                            # Date / report info strip
                             rpt_date = datetime.now().strftime('%B %d, %Y  ·  %I:%M %p')
                             strip = Table([[
                                 Paragraph('Project Analysis Report',
                                           ParagraphStyle('LS', parent=styles['Normal'],
-                                                         fontSize=8, textColor=colors.white,
-                                                         fontName='Helvetica-Bold')),
+                                              fontSize=8, textColor=colors.white,
+                                              fontName='Helvetica-Bold')),
                                 Paragraph(rpt_date,
                                           ParagraphStyle('RS', parent=styles['Normal'],
-                                                         fontSize=8,
-                                                         textColor=colors.HexColor('#B0BEC5'),
-                                                         alignment=TA_RIGHT)),
-                            ]], colWidths=[W * 0.55, W * 0.45])
+                                              fontSize=8, textColor=colors.HexColor('#B0BEC5'),
+                                              alignment=TA_RIGHT)),
+                            ]], colWidths=[PW * 0.55, PW * 0.45])
                             strip.setStyle(TableStyle([
-                                ('BACKGROUND',    (0,0), (-1,-1), colors.HexColor('#263238')),
-                                ('TOPPADDING',    (0,0), (-1,-1), 4),
-                                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-                                ('LEFTPADDING',   (0,0), (-1,-1), 8),
-                                ('RIGHTPADDING',  (0,0), (-1,-1), 8),
+                                ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#263238')),
+                                ('TOPPADDING',    (0,0),(-1,-1), 4),
+                                ('BOTTOMPADDING', (0,0),(-1,-1), 4),
+                                ('LEFTPADDING',   (0,0),(-1,-1), 8),
+                                ('RIGHTPADDING',  (0,0),(-1,-1), 8),
                             ]))
                             elements.append(strip)
                             elements.append(tiny())
 
                             # ── SECTION 1: Project Information ───────────────────────────
-                            elements.append(section_header('PROJECT INFORMATION'))
+                            elements.append(sec_hdr('PROJECT INFORMATION'))
                             elements.append(micro())
-
-                            proj_rows = [
+                            elements.append(kv_table([
                                 ['Project #:',    str(project.get('project_number', ''))],
                                 ['Project Name:', project.get('project_name', '')],
                                 ['Designer:',     project.get('designer', '')],
                                 ['Date:',         project.get('date', '')],
                                 ['Contact:',      project.get('contact', '—')],
                                 ['Description:',  project.get('description', '')],
-                            ]
-                            proj_t = Table(proj_rows, colWidths=[1.4*inch, W - 1.4*inch])
-                            proj_t.setStyle(key_val_style('#E3F2FD'))
-                            elements.append(proj_t)
+                            ], '#E3F2FD'))
                             elements.append(tiny())
 
                             # ── SECTION 2: Primary Product Volume ────────────────────────
-                            elements.append(section_header('PRIMARY PRODUCT VOLUME', '#2E7D32'))
+                            elements.append(sec_hdr('PRIMARY PRODUCT VOLUME', '#2E7D32'))
                             elements.append(micro())
-
-                            prim_rows = [
-                                ['Weight:',         f"{project.get('weight', 0)} {w_unit}"],
-                                ['Unit Volume:',    f"{fmt(unit_vol_mm3, vol_unit)} {vol_unit}"],
-                                ['Quantity:',       f"{qty}"],
-                                ['Total Volume:',   f"{fmt(total_vol_mm3, vol_unit)} {vol_unit}"],
-                            ]
-                            prim_t = Table(prim_rows, colWidths=[1.4*inch, W - 1.4*inch])
-                            prim_t.setStyle(key_val_style('#E8F5E9'))
-                            elements.append(prim_t)
+                            elements.append(kv_table([
+                                ['Weight:',        f"{project.get('weight', 0)} {w_unit}"],
+                                ['Unit Volume:',   f"{fmv(unit_vol_mm3,  vol_unit)} {vol_unit}"],
+                                ['Quantity:',      str(qty)],
+                                ['Total Volume:',  f"{fmv(total_vol_mm3, vol_unit)} {vol_unit}"],
+                            ], '#E8F5E9'))
                             elements.append(tiny())
 
                             # ── SECTION 3: Secondary Packaging ───────────────────────────
                             if box_vol_mm3 > 0:
-                                elements.append(section_header('SECONDARY PACKAGING', '#E65100'))
+                                elements.append(sec_hdr('SECONDARY PACKAGING', '#E65100'))
                                 elements.append(micro())
-
                                 dim_str = (f"{project.get('box_length', 0)} × "
-                                           f"{project.get('box_width', 0)} × "
+                                           f"{project.get('box_width',  0)} × "
                                            f"{project.get('box_height', 0)} {dim_unit}")
-
-                                box_rows = [
-                                    ['Box Dimensions:',  dim_str],
-                                    ['Box Volume:',      f"{fmt(box_vol_mm3, vol_unit)} {vol_unit}"],
-                                    ['Product Volume:',  f"{fmt(total_vol_mm3, vol_unit)} {vol_unit}"],
-                                    ['Remaining Volume:', f"{fmt(rem_mm3, vol_unit)} {vol_unit}"],
-                                    ['Volume Efficiency:', f"{eff_pct:.1f}%"],
+                                elements.append(kv_table([
+                                    ['Box Dimensions:',   dim_str],
+                                    ['Box Volume:',       f"{fmv(box_vol_mm3,   vol_unit)} {vol_unit}"],
+                                    ['Product Volume:',   f"{fmv(total_vol_mm3, vol_unit)} {vol_unit}"],
+                                    ['Remaining Volume:', f"{fmv(rem_mm3,       vol_unit)} {vol_unit}"],
+                                    ['Efficiency:',       f"{eff_pct:.1f}%"],
                                     ['Remaining Space:',  f"{rem_pct:.1f}%"],
-                                ]
-                                box_t = Table(box_rows, colWidths=[1.4*inch, W - 1.4*inch])
-                                box_t.setStyle(key_val_style('#FFF3E0'))
-                                elements.append(box_t)
+                                ], '#FFF3E0'))
                                 elements.append(tiny())
 
                         # ════════════════════════════════════════════════════════════════
-                        # Comparison table (multi-project only)
+                        # Comparison table — multi-project, half-width columns
                         # ════════════════════════════════════════════════════════════════
                         projects_with_boxes = [p for p in st.session_state.loaded_projects_overview
                                                if p.get('box_volume_mm3', 0) > 0]
                         if len(st.session_state.loaded_projects_overview) > 1 and projects_with_boxes:
                             elements.append(PageBreak())
-                            elements.append(section_header('VOLUME COMPARISON SUMMARY'))
+                            elements.append(sec_hdr('VOLUME COMPARISON SUMMARY'))
                             elements.append(tiny())
 
-                            # Use first project's unit for column headers
-                            cmp_unit = projects_with_boxes[0].get('box_result_unit', 'cubic cm')
-
-                            hdr_row = [
-                                Paragraph('<b>#</b>',    ParagraphStyle('CH',parent=styles['Normal'],fontSize=8,textColor=colors.white,fontName='Helvetica-Bold',alignment=TA_CENTER)),
-                                Paragraph('<b>Project Name</b>',  ParagraphStyle('CH2',parent=styles['Normal'],fontSize=8,textColor=colors.white,fontName='Helvetica-Bold')),
-                                Paragraph(f'<b>Box Vol\n({cmp_unit})</b>', ParagraphStyle('CH3',parent=styles['Normal'],fontSize=7,textColor=colors.white,fontName='Helvetica-Bold',alignment=TA_CENTER)),
-                                Paragraph(f'<b>Product Vol\n({cmp_unit})</b>', ParagraphStyle('CH4',parent=styles['Normal'],fontSize=7,textColor=colors.white,fontName='Helvetica-Bold',alignment=TA_CENTER)),
-                                Paragraph(f'<b>Remaining\n({cmp_unit})</b>', ParagraphStyle('CH5',parent=styles['Normal'],fontSize=7,textColor=colors.white,fontName='Helvetica-Bold',alignment=TA_CENTER)),
-                                Paragraph('<b>Efficiency</b>', ParagraphStyle('CH6',parent=styles['Normal'],fontSize=8,textColor=colors.white,fontName='Helvetica-Bold',alignment=TA_CENTER)),
-                            ]
-                            cmp_rows = [hdr_row]
+                            # All comparison rows use each project's own saved vol unit
+                            cmp_unit = projects_with_boxes[0].get('box_result_unit', 'cubic inches')
+                            ch = ParagraphStyle('CH', parent=styles['Normal'],
+                                                fontSize=7.5, textColor=colors.white,
+                                                fontName='Helvetica-Bold', alignment=TA_CENTER)
+                            cmp_rows = [[
+                                Paragraph('#', ch),
+                                Paragraph('Project Name', ch),
+                                Paragraph(f'Box Vol\n({cmp_unit})', ch),
+                                Paragraph(f'Product Vol\n({cmp_unit})', ch),
+                                Paragraph(f'Remaining\n({cmp_unit})', ch),
+                                Paragraph('Efficiency', ch),
+                            ]]
                             for p in projects_with_boxes:
-                                p_unit    = p.get('box_result_unit', 'cubic cm')
-                                t_vol_mm3 = p.get('total_product_volume_mm3',
-                                                  p.get('primary_volume_mm3', 0))
-                                b_mm3     = p.get('box_volume_mm3', 0)
-                                r_mm3     = b_mm3 - t_vol_mm3
-                                e_pct     = (t_vol_mm3 / b_mm3 * 100) if b_mm3 > 0 else 0
+                                p_unit   = p.get('box_result_unit', 'cubic inches')
+                                t_mm3    = p.get('total_product_volume_mm3',
+                                                 p.get('primary_volume_mm3', 0))
+                                b_mm3    = p.get('box_volume_mm3', 0)
+                                r_mm3    = b_mm3 - t_mm3
+                                e_pct    = (t_mm3 / b_mm3 * 100) if b_mm3 > 0 else 0
                                 cmp_rows.append([
                                     str(p.get('project_number', '')),
-                                    p.get('project_name', '')[:28],
-                                    fmt(b_mm3,   p_unit),
-                                    fmt(t_vol_mm3, p_unit),
-                                    fmt(r_mm3,   p_unit),
+                                    p.get('project_name', '')[:26],
+                                    fmv(b_mm3,  p_unit),
+                                    fmv(t_mm3,  p_unit),
+                                    fmv(r_mm3,  p_unit),
                                     f"{e_pct:.1f}%",
                                 ])
-
+                            # Comparison table spans full width (many columns need the room)
                             cmp_t = Table(cmp_rows,
-                                          colWidths=[0.45*inch, 2.1*inch,
-                                                     1.25*inch, 1.25*inch, 1.25*inch, 1.2*inch])
+                                          colWidths=[0.4*inch, 1.8*inch,
+                                                     1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch])
                             cmp_t.setStyle(TableStyle([
-                                ('BACKGROUND',    (0,0), (-1,0),  colors.HexColor('#1565C0')),
-                                ('FONTSIZE',      (0,1), (-1,-1), 8),
-                                ('ALIGN',         (0,0), (-1,-1), 'CENTER'),
-                                ('ALIGN',         (1,0), (1,-1),  'LEFT'),
-                                ('TOPPADDING',    (0,0), (-1,-1), 3),
-                                ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-                                ('LEFTPADDING',   (0,0), (-1,-1), 5),
-                                ('RIGHTPADDING',  (0,0), (-1,-1), 5),
-                                ('GRID',          (0,0), (-1,-1), 0.4, colors.HexColor('#CFD8DC')),
-                                ('ROWBACKGROUNDS', (0,1), (-1,-1),
+                                ('BACKGROUND',     (0,0),(-1,0),  colors.HexColor('#1565C0')),
+                                ('FONTSIZE',        (0,1),(-1,-1), 8),
+                                ('ALIGN',           (0,0),(-1,-1), 'CENTER'),
+                                ('ALIGN',           (1,0),(1,-1),  'LEFT'),
+                                ('TOPPADDING',      (0,0),(-1,-1), 3),
+                                ('BOTTOMPADDING',   (0,0),(-1,-1), 3),
+                                ('LEFTPADDING',     (0,0),(-1,-1), 4),
+                                ('RIGHTPADDING',    (0,0),(-1,-1), 4),
+                                ('GRID',            (0,0),(-1,-1), 0.4, colors.HexColor('#CFD8DC')),
+                                ('ROWBACKGROUNDS',  (0,1),(-1,-1),
                                  [colors.white, colors.HexColor('#E3F2FD')]),
                             ]))
                             elements.append(cmp_t)
 
-                        # ── Build PDF & offer download ────────────────────────────────────
+                        # ── Build & offer download ────────────────────────────────────────
                         doc.build(elements)
                         buf.seek(0)
                         pdf_bytes = buf.getvalue()
-
                         filename = f"DVA_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
                         st.download_button(
                             label="⬇️ Download PDF Report",
                             data=pdf_bytes,
                             file_name=filename,
                             mime="application/pdf",
-                            use_container_width=True
+                            use_container_width=True,
                         )
                         st.success("✅ PDF report generated successfully!")
 
@@ -3099,26 +3078,39 @@ with tab2:
                     
                     with col2:
                         st.markdown("#### Calculation Results")
-                        
-                        # Primary product volume
-                        results = calculate_volume(project['weight'], project['weight_unit'])
-                        
+
+                        # Single global unit — matches everything else in the app
+                        disp_vol_unit = st.session_state.get('pref_volume_unit', 'cubic inches')
+                        mm3_to_disp   = {
+                            'cubic mm': 1, 'cubic cm': 0.001,
+                            'cubic inches': 0.000061023744, 'cubic feet': 0.000000035315
+                        }
+                        factor = mm3_to_disp.get(disp_vol_unit, 0.001)
+
+                        unit_vol_mm3   = project.get('primary_volume_mm3', 0)
+                        total_vol_mm3  = project.get('total_product_volume_mm3', unit_vol_mm3)
+                        qty            = project.get('product_quantity', 1)
+                        unit_vol_disp  = unit_vol_mm3  * factor
+                        total_vol_disp = total_vol_mm3 * factor
+
                         st.success(f"""
                         **Primary Product:**  
                         Weight: {project['weight']} {project['weight_unit']}  
-                        
-                        **Volumes:**  
-                        • {results['mm³']:,.2f} mm³  
-                        • {results['cm³']:,.2f} cm³  
-                        • {results['in³']:,.3f} in³
+                        Unit Volume: {unit_vol_disp:,.4f} {disp_vol_unit}  
+                        Quantity: {qty}  
+                        Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
                         """)
-                        
-                        # Box volume if available
+
                         if project.get('box_volume_mm3', 0) > 0:
+                            box_vol_disp = project['box_volume_mm3'] * factor
+                            rem_disp     = (project['box_volume_mm3'] - total_vol_mm3) * factor
+                            eff          = (total_vol_mm3 / project['box_volume_mm3'] * 100) if project['box_volume_mm3'] > 0 else 0
                             st.info(f"""
                             **Secondary Packaging:**  
                             Dimensions: {project['box_length']} × {project['box_width']} × {project['box_height']} {project['dimension_unit']}  
-                            Box Volume: {project['box_volume_mm3']:,.2f} mm³
+                            Box Volume: {box_vol_disp:,.4f} {disp_vol_unit}  
+                            Remaining: {rem_disp:,.4f} {disp_vol_unit}  
+                            Efficiency: {eff:.1f}%
                             """)
                     
                     # Remove button for this project
