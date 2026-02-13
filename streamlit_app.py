@@ -935,7 +935,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
             y=[offset_y],
             z=[tick_z],
             mode='text',
-            text=[f'<b>{tick_value:.1f}"</b>'],
+            text=[f'<b>{tick_value:.1f}</b>'],
             textfont=dict(size=14, color='white'),
             showlegend=False,
             hoverinfo='skip'
@@ -979,7 +979,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
             y=[offset_y_len],
             z=[offset_z - 0.18*h],
             mode='text',
-            text=[f'<b>{tick_value:.1f}"</b>'],
+            text=[f'<b>{tick_value:.1f}</b>'],
             textfont=dict(size=14, color='white'),
             showlegend=False,
             hoverinfo='skip'
@@ -1022,7 +1022,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
             y=[tick_y],
             z=[offset_z],
             mode='text',
-            text=[f'<b>{tick_value:.1f}"</b>'],
+            text=[f'<b>{tick_value:.1f}</b>'],
             textfont=dict(size=14, color='white'),
             showlegend=False,
             hoverinfo='skip'
@@ -2789,6 +2789,7 @@ with tab2:
             if st.button("📄 Output Report", use_container_width=True, type="primary"):
                 if st.session_state.loaded_projects_overview:
                     try:
+                        import math
                         from reportlab.lib.pagesizes import letter
                         from reportlab.lib import colors
                         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -2796,52 +2797,55 @@ with tab2:
                         from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
                                                         Paragraph, Spacer, PageBreak, Image as RLImage)
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+                        from reportlab.graphics.shapes import Drawing, Rect, Line, Polygon, String
                         from io import BytesIO
 
-                        # ── mm³ conversion table (matches app's own conversion map) ───────
+                        # ── mm³ conversion ───────────────────────────────────────────────
                         MM3_TO = {
                             'cubic mm':     1.0,
                             'cubic cm':     0.001,
                             'cubic inches': 0.000061023744,
                             'cubic feet':   0.000000035315,
                         }
-                        def to_unit(mm3_val, unit):
-                            return mm3_val * MM3_TO.get(unit, 0.001)
-                        def fmv(mm3_val, unit, d=4):
-                            return f"{to_unit(mm3_val, unit):,.{d}f}"
+                        def to_unit(v, u): return v * MM3_TO.get(u, 0.001)
+                        def fmv(v, u, d=4): return f"{to_unit(v,u):,.{d}f}"
 
-                        # ── Page geometry ────────────────────────────────────────────────
-                        buf  = BytesIO()
-                        PW   = 7.5 * inch     # total usable width (letter - margins)
-                        TW   = PW / 2         # table width = 50 % of page
-                        KW   = 1.3 * inch     # key column
-                        VW   = TW - KW        # value column
-                        doc  = SimpleDocTemplate(
-                            buf, pagesize=letter,
-                            topMargin=0.45*inch, bottomMargin=0.45*inch,
-                            leftMargin=0.5*inch,  rightMargin=0.5*inch,
-                        )
+                        # ── Page / column geometry ───────────────────────────────────────
+                        buf = BytesIO()
+                        PW  = 7.5  * inch   # usable page width
+                        TW  = PW   / 2      # data table column (left)
+                        D3W = PW   / 2      # 3D preview column (right)
+                        D3H = 2.65 * inch   # 3D preview height
+                        KW  = 1.3  * inch   # key column inside tables
+                        VW  = TW   - KW     # value column
+
+                        doc = SimpleDocTemplate(buf, pagesize=letter,
+                            topMargin=0.4*inch, bottomMargin=0.4*inch,
+                            leftMargin=0.5*inch, rightMargin=0.5*inch)
                         styles = getSampleStyleSheet()
 
-                        # ── Paragraph styles ─────────────────────────────────────────────
-                        s_title   = ParagraphStyle('DVATitle', parent=styles['Normal'],
-                                        fontSize=14, fontName='Helvetica-Bold',
-                                        textColor=colors.HexColor('#1565C0'),
-                                        alignment=TA_CENTER, spaceAfter=1)
-                        s_sub     = ParagraphStyle('DVASub', parent=styles['Normal'],
-                                        fontSize=7.5, textColor=colors.HexColor('#546E7A'),
-                                        alignment=TA_CENTER, spaceAfter=0)
-                        s_sec     = ParagraphStyle('DVASec', parent=styles['Normal'],
-                                        fontSize=8.5, fontName='Helvetica-Bold',
-                                        textColor=colors.white,
-                                        spaceAfter=0, spaceBefore=0)
-                        s_cell    = ParagraphStyle('DVACell', parent=styles['Normal'],
-                                        fontSize=8, spaceAfter=0)
+                        # ── Styles ───────────────────────────────────────────────────────
+                        s_title = ParagraphStyle('DVATitle', parent=styles['Normal'],
+                                    fontSize=14, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#1565C0'),
+                                    alignment=TA_CENTER, spaceAfter=1)
+                        s_sub   = ParagraphStyle('DVASub', parent=styles['Normal'],
+                                    fontSize=7.5, textColor=colors.HexColor('#546E7A'),
+                                    alignment=TA_CENTER, spaceAfter=0)
+                        s_sec   = ParagraphStyle('DVASec', parent=styles['Normal'],
+                                    fontSize=8.5, fontName='Helvetica-Bold',
+                                    textColor=colors.white, spaceAfter=0, spaceBefore=0)
+                        s_info_hdr = ParagraphStyle('IH', parent=styles['Normal'],
+                                    fontSize=6.5, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#60a5fa'), spaceAfter=1)
+                        s_info_val = ParagraphStyle('IV', parent=styles['Normal'],
+                                    fontSize=6.0, textColor=colors.HexColor('#e2e8f0'),
+                                    spaceAfter=1)
 
                         def tiny():  return Spacer(1, 0.07*inch)
                         def micro(): return Spacer(1, 0.03*inch)
 
-                        # ── Key-value table style ────────────────────────────────────────
+                        # ── Table style ──────────────────────────────────────────────────
                         def kv_style(key_bg):
                             return TableStyle([
                                 ('BACKGROUND',    (0,0),(0,-1), colors.HexColor(key_bg)),
@@ -2861,7 +2865,6 @@ with tab2:
                             ])
 
                         def sec_hdr(label, bg='#1565C0'):
-                            """Coloured section heading, spans table width only."""
                             t = Table([[Paragraph(label, s_sec)]], colWidths=[TW])
                             t.setStyle(TableStyle([
                                 ('BACKGROUND',    (0,0),(0,0), colors.HexColor(bg)),
@@ -2873,39 +2876,242 @@ with tab2:
                             return t
 
                         def kv_table(rows, key_bg):
-                            """Build a key:value table at TW wide."""
                             t = Table(rows, colWidths=[KW, VW])
                             t.setStyle(kv_style(key_bg))
                             return t
 
-                        # ── Logo / page header ───────────────────────────────────────────
+                        # ── Header builder (+20% height, uniform logo scale) ─────────────
+                        # +20% over original 0.60" baseline → 0.72"
+                        HDR_H  = 0.72 * inch
+                        # dva_logo.png is 400×400px (1:1 square) — uniform scale
+                        LOGO_H = HDR_H * 0.80        # 80% of header cell height
+                        LOGO_W = LOGO_H * 1.0        # 1:1 aspect ratio
+
                         def build_header():
-                            logo_w = PW   # full width for the header bar
                             title_p = Paragraph('Displacement Volume Analyzer', s_title)
                             sub_p   = Paragraph(
-                                "Archimedes\' Principle  |  Water at 4°C (1 g/mL)", s_sub)
+                                "Archimedes' Principle  |  Water at 4\xb0C (1 g/mL)", s_sub)
                             if os.path.exists('dva_logo.png'):
                                 try:
-                                    logo = RLImage('dva_logo.png', width=1.1*inch, height=0.33*inch)
-                                    hdr = Table([[logo, [title_p, micro(), sub_p], '']],
-                                                colWidths=[1.2*inch, logo_w-1.9*inch, 0.7*inch])
+                                    logo = RLImage('dva_logo.png',
+                                                   width=LOGO_W, height=LOGO_H)
+                                    right_w = 0.6 * inch
+                                    mid_w   = PW - LOGO_W - right_w - 0.12*inch
+                                    hdr = Table(
+                                        [[logo, [title_p, micro(), sub_p], '']],
+                                        colWidths=[LOGO_W + 0.12*inch, mid_w, right_w])
                                 except Exception:
                                     hdr = Table([['', [title_p, micro(), sub_p], '']],
-                                                colWidths=[0, logo_w, 0])
+                                                colWidths=[0, PW, 0])
                             else:
                                 hdr = Table([['', [title_p, micro(), sub_p], '']],
-                                            colWidths=[0, logo_w, 0])
+                                            colWidths=[0, PW, 0])
                             hdr.setStyle(TableStyle([
-                                ('VALIGN',      (0,0),(-1,-1), 'MIDDLE'),
-                                ('LEFTPADDING', (0,0),(-1,-1), 0),
-                                ('RIGHTPADDING',(0,0),(-1,-1), 0),
-                                ('TOPPADDING',  (0,0),(-1,-1), 3),
-                                ('BOTTOMPADDING',(0,0),(-1,-1), 3),
+                                ('VALIGN',        (0,0),(-1,-1), 'MIDDLE'),
+                                ('LEFTPADDING',   (0,0),(-1,-1), 4),
+                                ('RIGHTPADDING',  (0,0),(-1,-1), 4),
+                                ('TOPPADDING',    (0,0),(-1,-1), 6),
+                                ('BOTTOMPADDING', (0,0),(-1,-1), 6),
+                                ('LINEBELOW',     (0,0),(-1,-1), 0.5,
+                                                  colors.HexColor('#1565C0')),
                             ]))
                             return hdr
 
+                        # ── 3D isometric box drawing with grid-scale rulers ───────────────
+                        def make_3d_drawing(length, width, height, eff_pct, dim_unit,
+                                            dw=D3W, dh=D3H):
+                            drawing = Drawing(dw, dh)
+                            drawing.add(Rect(0,0,dw,dh,
+                                            fillColor=colors.HexColor('#0f172a'),
+                                            strokeColor=None))
+
+                            max_dim = max(length, width, height)
+                            scale   = min(dw * 0.36, dh * 0.36) / max_dim
+                            ox = dw * 0.34;  oy = dh * 0.24
+                            cos30 = math.cos(math.radians(30))
+                            sin30 = math.sin(math.radians(30))
+
+                            def iso(x, y, z):
+                                return (ox + x*cos30*scale - y*cos30*scale,
+                                        oy + x*sin30*scale + y*sin30*scale + z*scale)
+
+                            def draw_prism(lx, ly, lz, fill_hex, stroke_hex, fa):
+                                fc = colors.HexColor(fill_hex)
+                                sc = colors.HexColor(stroke_hex)
+                                c  = [iso(0,0,0),iso(lx,0,0),iso(lx,ly,0),iso(0,ly,0),
+                                      iso(0,0,lz),iso(lx,0,lz),iso(lx,ly,lz),iso(0,ly,lz)]
+                                def face(pts, al):
+                                    flat=[v for p in pts for v in p]
+                                    drawing.add(Polygon(flat, fillColor=fc,
+                                                        strokeColor=None, fillOpacity=al))
+                                face([c[0],c[1],c[5],c[4]], fa*0.85)  # front
+                                face([c[1],c[2],c[6],c[5]], fa*0.60)  # right
+                                face([c[4],c[5],c[6],c[7]], fa*1.00)  # top
+                                for a,b in [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),
+                                            (6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]:
+                                    drawing.add(Line(c[a][0],c[a][1],c[b][0],c[b][1],
+                                                     strokeColor=sc, strokeWidth=1.0))
+
+                            draw_prism(length, width, height, '#1e3a5f', '#3b82f6', 0.45)
+                            fill_h = height * (eff_pct / 100)
+                            if fill_h > 0:
+                                draw_prism(length, width, fill_h, '#064e3b', '#10b981', 0.70)
+
+                            # grid-scale ruler constants
+                            n   = 5
+                            rc  = colors.HexColor('#94a3b8')   # ruler line
+                            tc  = colors.HexColor('#cbd5e1')   # tick mark
+                            lc  = colors.HexColor('#e2e8f0')   # number label
+                            ac  = colors.HexColor('#60a5fa')   # axis name label
+                            gl  = colors.HexColor('#1e293b')   # faint grid connector
+                            fs  = 5.0   # number font size
+                            als = 5.5   # axis label font size
+
+                            # HEIGHT ruler (left side)
+                            r0h = iso(-length*0.22, 0, 0)
+                            r1h = iso(-length*0.22, 0, height)
+                            drawing.add(Line(r0h[0],r0h[1],r1h[0],r1h[1],
+                                             strokeColor=rc, strokeWidth=0.8))
+                            for i in range(n+1):
+                                z_val = height * i/n
+                                rx,ry = iso(-length*0.22, 0, z_val)
+                                gx,gy = iso(0, 0, z_val)
+                                drawing.add(Line(gx,gy,rx,ry, strokeColor=gl, strokeWidth=0.4))
+                                drawing.add(Line(rx-3,ry, rx+3,ry,
+                                                 strokeColor=tc, strokeWidth=0.7))
+                                drawing.add(String(rx-5, ry-2, f'{z_val:.1f}',
+                                                   fontSize=fs, fillColor=lc, textAnchor='end'))
+                            hmx,hmy = iso(-length*0.22, 0, height*0.5)
+                            drawing.add(String(hmx-11, hmy-2, f'H ({dim_unit})',
+                                               fontSize=als, fillColor=ac, textAnchor='end'))
+
+                            # LENGTH ruler (front-bottom)
+                            r0l = iso(0, -width*0.22, 0)
+                            r1l = iso(length, -width*0.22, 0)
+                            drawing.add(Line(r0l[0],r0l[1],r1l[0],r1l[1],
+                                             strokeColor=rc, strokeWidth=0.8))
+                            for i in range(n+1):
+                                x_val = length * i/n
+                                rx,ry = iso(x_val, -width*0.22, 0)
+                                gx,gy = iso(x_val, 0, 0)
+                                drawing.add(Line(gx,gy,rx,ry, strokeColor=gl, strokeWidth=0.4))
+                                drawing.add(Line(rx,ry+3, rx,ry-3,
+                                                 strokeColor=tc, strokeWidth=0.7))
+                                drawing.add(String(rx, ry-7, f'{x_val:.1f}',
+                                                   fontSize=fs, fillColor=lc, textAnchor='middle'))
+                            lmx,lmy = iso(length*0.5, -width*0.22, 0)
+                            drawing.add(String(lmx, lmy-12, f'L ({dim_unit})',
+                                               fontSize=als, fillColor=ac, textAnchor='middle'))
+
+                            # WIDTH ruler (right side)
+                            r0w = iso(length, 0, -height*0.22)
+                            r1w = iso(length, width, -height*0.22)
+                            drawing.add(Line(r0w[0],r0w[1],r1w[0],r1w[1],
+                                             strokeColor=rc, strokeWidth=0.8))
+                            for i in range(n+1):
+                                y_val = width * i/n
+                                rx,ry = iso(length, y_val, -height*0.22)
+                                gx,gy = iso(length, y_val, 0)
+                                drawing.add(Line(gx,gy,rx,ry, strokeColor=gl, strokeWidth=0.4))
+                                drawing.add(Line(rx-3,ry, rx+3,ry,
+                                                 strokeColor=tc, strokeWidth=0.7))
+                                drawing.add(String(rx+5, ry-2, f'{y_val:.1f}',
+                                                   fontSize=fs, fillColor=lc, textAnchor='start'))
+                            wmx,wmy = iso(length, width*0.5, -height*0.22)
+                            drawing.add(String(wmx+10, wmy-2, f'W ({dim_unit})',
+                                               fontSize=als, fillColor=ac, textAnchor='start'))
+
+                            # Liquid fill level marker
+                            if fill_h > 0 and eff_pct > 1:
+                                lp = iso(length*0.5, 0, fill_h)
+                                drawing.add(String(lp[0]+4, lp[1]+2,
+                                                   f'{eff_pct:.0f}% fill',
+                                                   fontSize=4.5,
+                                                   fillColor=colors.HexColor('#10b981'),
+                                                   textAnchor='start'))
+                            return drawing
+
+                        # ── Build info panel for right side of 3D preview ────────────────
+                        def make_info_panel(project, eff_pct, rem_pct,
+                                            vol_unit, w_unit, dim_unit, qty,
+                                            unit_vol_mm3, total_vol_mm3,
+                                            box_vol_mm3, rem_mm3):
+                            """Small text panel: 3D Vol Preview title + Primary Product,
+                               Secondary Packaging, Efficiency — stacked in order."""
+                            rows = []
+
+                            # ── header label ─────────────────────────────────────────────
+                            # Info order: 3D Volume Preview → Primary Product → Secondary Packaging → Efficiency
+                            # Font sizes reduced one step from previous values
+                            rows.append([Paragraph('<b>3D Volume Preview</b>',
+                                ParagraphStyle('PH', parent=styles['Normal'],
+                                    fontSize=5.5, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#60a5fa')))])
+                            rows.append([Spacer(1, 2)])
+
+                            # ── Primary Product ──────────────────────────────────────────
+                            rows.append([Paragraph('<b>Primary Product</b>',
+                                ParagraphStyle('PP', parent=styles['Normal'],
+                                    fontSize=5.0, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#10b981')))])
+                            rows.append([Paragraph(
+                                f"{project.get('weight',0)} {w_unit}  ·  "
+                                f"{fmv(unit_vol_mm3,vol_unit,3)} {vol_unit}/unit",
+                                ParagraphStyle('PPV', parent=styles['Normal'],
+                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
+                            rows.append([Paragraph(
+                                f"Qty: {qty}  ·  Total: {fmv(total_vol_mm3,vol_unit,3)} {vol_unit}",
+                                ParagraphStyle('PPV2', parent=styles['Normal'],
+                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
+                            rows.append([Spacer(1, 2)])
+
+                            # ── Secondary Packaging ──────────────────────────────────────
+                            rows.append([Paragraph('<b>Secondary Packaging</b>',
+                                ParagraphStyle('SP', parent=styles['Normal'],
+                                    fontSize=5.0, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor('#3b82f6')))])
+                            dim_str = (f"{project.get('box_length',0)} x "
+                                       f"{project.get('box_width',0)} x "
+                                       f"{project.get('box_height',0)} {dim_unit}")
+                            rows.append([Paragraph(
+                                dim_str,
+                                ParagraphStyle('SPV', parent=styles['Normal'],
+                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
+                            rows.append([Paragraph(
+                                f"Box: {fmv(box_vol_mm3,vol_unit,3)} {vol_unit}  ·  "
+                                f"Rem: {fmv(rem_mm3,vol_unit,3)} {vol_unit}",
+                                ParagraphStyle('SPV2', parent=styles['Normal'],
+                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
+                            rows.append([Spacer(1, 2)])
+
+                            # ── Efficiency ───────────────────────────────────────────────
+                            eff_color = ('#10b981' if eff_pct >= 85 else
+                                         '#3b82f6' if eff_pct >= 70 else
+                                         '#f59e0b' if eff_pct >= 50 else '#ef4444')
+                            rows.append([Paragraph('<b>Efficiency</b>',
+                                ParagraphStyle('EFF', parent=styles['Normal'],
+                                    fontSize=5.0, fontName='Helvetica-Bold',
+                                    textColor=colors.HexColor(eff_color)))])
+                            rows.append([Paragraph(
+                                f"{eff_pct:.1f}% filled  ·  {rem_pct:.1f}% remaining",
+                                ParagraphStyle('EFFV', parent=styles['Normal'],
+                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
+
+                            # Pack rows into a narrow table (fits right of 3D drawing)
+                            ip = Table([[r[0]] for r in rows],
+                                       colWidths=[D3W - 4])
+                            ip.setStyle(TableStyle([
+                                ('LEFTPADDING',   (0,0),(-1,-1), 4),
+                                ('RIGHTPADDING',  (0,0),(-1,-1), 2),
+                                ('TOPPADDING',    (0,0),(-1,-1), 0),
+                                ('BOTTOMPADDING', (0,0),(-1,-1), 0),
+                                ('BACKGROUND',    (0,0),(-1,-1),
+                                                  colors.HexColor('#0f172a')),
+                            ]))
+                            return ip
+
                         # ════════════════════════════════════════════════════════════════
-                        # Build pages
+                        # Per-project pages
                         # ════════════════════════════════════════════════════════════════
                         elements = []
 
@@ -2913,35 +3119,34 @@ with tab2:
                             if p_idx > 0:
                                 elements.append(PageBreak())
 
-                            # Unit fields — read directly from what was saved in the project file
+                            # Unit fields from saved project
                             vol_unit = project.get('box_result_unit', 'cubic inches')
                             dim_unit = project.get('dimension_unit', 'inches')
                             w_unit   = project.get('weight_unit', 'grams')
                             qty      = int(project.get('product_quantity', 1))
 
-                            # Volume values (always stored as mm³)
                             unit_vol_mm3  = project.get('primary_volume_mm3', 0.0)
                             total_vol_mm3 = project.get('total_product_volume_mm3', unit_vol_mm3)
                             box_vol_mm3   = project.get('box_volume_mm3', 0.0)
                             rem_mm3       = box_vol_mm3 - total_vol_mm3
-                            eff_pct       = (total_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
+                            eff_pct       = (total_vol_mm3/box_vol_mm3*100) if box_vol_mm3>0 else 0
                             rem_pct       = 100.0 - eff_pct
 
-                            # ── Page header ──────────────────────────────────────────────
+                            # Header
                             elements.append(build_header())
                             elements.append(micro())
 
                             rpt_date = datetime.now().strftime('%B %d, %Y  ·  %I:%M %p')
                             strip = Table([[
                                 Paragraph('Project Analysis Report',
-                                          ParagraphStyle('LS', parent=styles['Normal'],
-                                              fontSize=8, textColor=colors.white,
-                                              fontName='Helvetica-Bold')),
+                                    ParagraphStyle('LS', parent=styles['Normal'],
+                                        fontSize=8, textColor=colors.white,
+                                        fontName='Helvetica-Bold')),
                                 Paragraph(rpt_date,
-                                          ParagraphStyle('RS', parent=styles['Normal'],
-                                              fontSize=8, textColor=colors.HexColor('#B0BEC5'),
-                                              alignment=TA_RIGHT)),
-                            ]], colWidths=[PW * 0.55, PW * 0.45])
+                                    ParagraphStyle('RS', parent=styles['Normal'],
+                                        fontSize=8, textColor=colors.HexColor('#B0BEC5'),
+                                        alignment=TA_RIGHT)),
+                            ]], colWidths=[PW*0.55, PW*0.45])
                             strip.setStyle(TableStyle([
                                 ('BACKGROUND',    (0,0),(-1,-1), colors.HexColor('#263238')),
                                 ('TOPPADDING',    (0,0),(-1,-1), 4),
@@ -2952,49 +3157,92 @@ with tab2:
                             elements.append(strip)
                             elements.append(tiny())
 
-                            # ── SECTION 1: Project Information ───────────────────────────
-                            elements.append(sec_hdr('PROJECT INFORMATION'))
-                            elements.append(micro())
-                            elements.append(kv_table([
-                                ['Project #:',    str(project.get('project_number', ''))],
-                                ['Project Name:', project.get('project_name', '')],
-                                ['Designer:',     project.get('designer', '')],
-                                ['Date:',         project.get('date', '')],
-                                ['Contact:',      project.get('contact', '—')],
-                                ['Description:',  project.get('description', '')],
+                            # ── Left column: data tables ─────────────────────────────────
+                            left_items = []
+
+                            # Section 1: Project Information
+                            left_items.append(sec_hdr('PROJECT INFORMATION'))
+                            left_items.append(micro())
+                            left_items.append(kv_table([
+                                ['Project #:',    str(project.get('project_number',''))],
+                                ['Project Name:', project.get('project_name','')],
+                                ['Designer:',     project.get('designer','')],
+                                ['Date:',         project.get('date','')],
+                                ['Contact:',      project.get('contact','—')],
+                                ['Description:',  project.get('description','')],
                             ], '#E3F2FD'))
-                            elements.append(tiny())
+                            left_items.append(tiny())
 
-                            # ── SECTION 2: Primary Product Volume ────────────────────────
-                            elements.append(sec_hdr('PRIMARY PRODUCT VOLUME', '#2E7D32'))
-                            elements.append(micro())
-                            elements.append(kv_table([
-                                ['Weight:',        f"{project.get('weight', 0)} {w_unit}"],
-                                ['Unit Volume:',   f"{fmv(unit_vol_mm3,  vol_unit)} {vol_unit}"],
-                                ['Quantity:',      str(qty)],
-                                ['Total Volume:',  f"{fmv(total_vol_mm3, vol_unit)} {vol_unit}"],
+                            # Section 2: Primary Product Volume
+                            left_items.append(sec_hdr('PRIMARY PRODUCT VOLUME','#2E7D32'))
+                            left_items.append(micro())
+                            left_items.append(kv_table([
+                                ['Weight:',       f"{project.get('weight',0)} {w_unit}"],
+                                ['Unit Volume:',  f"{fmv(unit_vol_mm3, vol_unit)} {vol_unit}"],
+                                ['Quantity:',     str(qty)],
+                                ['Total Volume:', f"{fmv(total_vol_mm3,vol_unit)} {vol_unit}"],
                             ], '#E8F5E9'))
-                            elements.append(tiny())
+                            left_items.append(tiny())
 
-                            # ── SECTION 3: Secondary Packaging ───────────────────────────
+                            # Section 3: Secondary Packaging
                             if box_vol_mm3 > 0:
-                                elements.append(sec_hdr('SECONDARY PACKAGING', '#E65100'))
-                                elements.append(micro())
-                                dim_str = (f"{project.get('box_length', 0)} × "
-                                           f"{project.get('box_width',  0)} × "
-                                           f"{project.get('box_height', 0)} {dim_unit}")
-                                elements.append(kv_table([
+                                left_items.append(sec_hdr('SECONDARY PACKAGING','#E65100'))
+                                left_items.append(micro())
+                                dim_str = (f"{project.get('box_length',0)} x "
+                                           f"{project.get('box_width',0)} x "
+                                           f"{project.get('box_height',0)} {dim_unit}")
+                                left_items.append(kv_table([
                                     ['Box Dimensions:',   dim_str],
-                                    ['Box Volume:',       f"{fmv(box_vol_mm3,   vol_unit)} {vol_unit}"],
-                                    ['Product Volume:',   f"{fmv(total_vol_mm3, vol_unit)} {vol_unit}"],
-                                    ['Remaining Volume:', f"{fmv(rem_mm3,       vol_unit)} {vol_unit}"],
+                                    ['Box Volume:',       f"{fmv(box_vol_mm3,  vol_unit)} {vol_unit}"],
+                                    ['Product Volume:',   f"{fmv(total_vol_mm3,vol_unit)} {vol_unit}"],
+                                    ['Remaining Volume:', f"{fmv(rem_mm3,      vol_unit)} {vol_unit}"],
                                     ['Efficiency:',       f"{eff_pct:.1f}%"],
                                     ['Remaining Space:',  f"{rem_pct:.1f}%"],
                                 ], '#FFF3E0'))
-                                elements.append(tiny())
+                                left_items.append(tiny())
+
+                            # ── Right column: 3D drawing + info panel ────────────────────
+                            right_items = []
+                            if box_vol_mm3 > 0:
+                                try:
+                                    bl = float(project.get('box_length', 0))
+                                    bw = float(project.get('box_width',  0))
+                                    bh = float(project.get('box_height', 0))
+                                    if bl>0 and bw>0 and bh>0:
+                                        d3 = make_3d_drawing(bl, bw, bh, eff_pct, dim_unit)
+                                        right_items.append(d3)
+                                        right_items.append(micro())
+                                except Exception:
+                                    pass
+
+                                info = make_info_panel(
+                                    project, eff_pct, rem_pct,
+                                    vol_unit, w_unit, dim_unit, qty,
+                                    unit_vol_mm3, total_vol_mm3,
+                                    box_vol_mm3, rem_mm3)
+                                right_items.append(info)
+
+                            # ── Two-column wrapper ───────────────────────────────────────
+                            if right_items:
+                                left_cell  = left_items
+                                right_cell = right_items
+                                two_col = Table(
+                                    [[left_cell, right_cell]],
+                                    colWidths=[TW, D3W])
+                                two_col.setStyle(TableStyle([
+                                    ('VALIGN',        (0,0),(-1,-1), 'TOP'),
+                                    ('LEFTPADDING',   (0,0),(-1,-1), 0),
+                                    ('RIGHTPADDING',  (0,0),(-1,-1), 0),
+                                    ('TOPPADDING',    (0,0),(-1,-1), 0),
+                                    ('BOTTOMPADDING', (0,0),(-1,-1), 0),
+                                ]))
+                                elements.append(two_col)
+                            else:
+                                for item in left_items:
+                                    elements.append(item)
 
                         # ════════════════════════════════════════════════════════════════
-                        # Comparison table — multi-project, half-width columns
+                        # Comparison table (multi-project)
                         # ════════════════════════════════════════════════════════════════
                         projects_with_boxes = [p for p in st.session_state.loaded_projects_overview
                                                if p.get('box_volume_mm3', 0) > 0]
@@ -3003,8 +3251,7 @@ with tab2:
                             elements.append(sec_hdr('VOLUME COMPARISON SUMMARY'))
                             elements.append(tiny())
 
-                            # All comparison rows use each project's own saved vol unit
-                            cmp_unit = projects_with_boxes[0].get('box_result_unit', 'cubic inches')
+                            cmp_unit = projects_with_boxes[0].get('box_result_unit','cubic inches')
                             ch = ParagraphStyle('CH', parent=styles['Normal'],
                                                 fontSize=7.5, textColor=colors.white,
                                                 fontName='Helvetica-Bold', alignment=TA_CENTER)
@@ -3017,59 +3264,58 @@ with tab2:
                                 Paragraph('Efficiency', ch),
                             ]]
                             for p in projects_with_boxes:
-                                p_unit   = p.get('box_result_unit', 'cubic inches')
-                                t_mm3    = p.get('total_product_volume_mm3',
-                                                 p.get('primary_volume_mm3', 0))
-                                b_mm3    = p.get('box_volume_mm3', 0)
-                                r_mm3    = b_mm3 - t_mm3
-                                e_pct    = (t_mm3 / b_mm3 * 100) if b_mm3 > 0 else 0
+                                p_unit = p.get('box_result_unit','cubic inches')
+                                t_mm3  = p.get('total_product_volume_mm3',
+                                               p.get('primary_volume_mm3',0))
+                                b_mm3  = p.get('box_volume_mm3',0)
+                                r_mm3  = b_mm3 - t_mm3
+                                e_pct  = (t_mm3/b_mm3*100) if b_mm3>0 else 0
                                 cmp_rows.append([
-                                    str(p.get('project_number', '')),
-                                    p.get('project_name', '')[:26],
-                                    fmv(b_mm3,  p_unit),
-                                    fmv(t_mm3,  p_unit),
-                                    fmv(r_mm3,  p_unit),
+                                    str(p.get('project_number','')),
+                                    p.get('project_name','')[:26],
+                                    fmv(b_mm3, p_unit),
+                                    fmv(t_mm3, p_unit),
+                                    fmv(r_mm3, p_unit),
                                     f"{e_pct:.1f}%",
                                 ])
-                            # Comparison table spans full width (many columns need the room)
                             cmp_t = Table(cmp_rows,
-                                          colWidths=[0.4*inch, 1.8*inch,
-                                                     1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch])
+                                          colWidths=[0.4*inch,1.8*inch,
+                                                     1.15*inch,1.15*inch,1.15*inch,1.15*inch])
                             cmp_t.setStyle(TableStyle([
-                                ('BACKGROUND',     (0,0),(-1,0),  colors.HexColor('#1565C0')),
-                                ('FONTSIZE',        (0,1),(-1,-1), 8),
-                                ('ALIGN',           (0,0),(-1,-1), 'CENTER'),
-                                ('ALIGN',           (1,0),(1,-1),  'LEFT'),
-                                ('TOPPADDING',      (0,0),(-1,-1), 3),
-                                ('BOTTOMPADDING',   (0,0),(-1,-1), 3),
-                                ('LEFTPADDING',     (0,0),(-1,-1), 4),
-                                ('RIGHTPADDING',    (0,0),(-1,-1), 4),
-                                ('GRID',            (0,0),(-1,-1), 0.4, colors.HexColor('#CFD8DC')),
-                                ('ROWBACKGROUNDS',  (0,1),(-1,-1),
+                                ('BACKGROUND',    (0,0),(-1,0), colors.HexColor('#1565C0')),
+                                ('FONTSIZE',      (0,1),(-1,-1), 8),
+                                ('ALIGN',         (0,0),(-1,-1), 'CENTER'),
+                                ('ALIGN',         (1,0),(1,-1), 'LEFT'),
+                                ('TOPPADDING',    (0,0),(-1,-1), 3),
+                                ('BOTTOMPADDING', (0,0),(-1,-1), 3),
+                                ('LEFTPADDING',   (0,0),(-1,-1), 4),
+                                ('RIGHTPADDING',  (0,0),(-1,-1), 4),
+                                ('GRID',          (0,0),(-1,-1), 0.4, colors.HexColor('#CFD8DC')),
+                                ('ROWBACKGROUNDS',(0,1),(-1,-1),
                                  [colors.white, colors.HexColor('#E3F2FD')]),
                             ]))
                             elements.append(cmp_t)
 
-                        # ── Build & offer download ────────────────────────────────────────
+                        # ── Build & download ──────────────────────────────────────────────
                         doc.build(elements)
                         buf.seek(0)
                         pdf_bytes = buf.getvalue()
                         filename = f"DVA_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
                         st.download_button(
-                            label="⬇️ Download PDF Report",
+                            label="\u2b07\ufe0f Download PDF Report",
                             data=pdf_bytes,
                             file_name=filename,
                             mime="application/pdf",
                             use_container_width=True,
                         )
-                        st.success("✅ PDF report generated successfully!")
+                        st.success("\u2705 PDF report generated successfully!")
 
                     except ImportError as e:
-                        st.error(f"❌ Missing library: {e}. Install with: pip install reportlab")
+                        st.error(f"\u274c Missing library: {e}. Install with: pip install reportlab")
                     except Exception as e:
-                        st.error(f"❌ Error generating PDF: {str(e)}")
+                        st.error(f"\u274c Error generating PDF: {str(e)}")
                 else:
-                    st.warning("⚠️ No projects in overview. Add projects to generate a report.")
+                    st.warning("\u26a0\ufe0f No projects in overview. Add projects to generate a report.")
         
         # Initialize overview list
         if 'loaded_projects_overview' not in st.session_state:
