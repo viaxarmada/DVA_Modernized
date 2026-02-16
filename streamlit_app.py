@@ -2371,7 +2371,44 @@ with tab1:
                         <div class="result-unit">{remaining_unit}</div>
                     </div>
                     """, unsafe_allow_html=True)
-        
+
+                # ── Save Secondary Packaging Info ────────────────────────────
+                st.markdown("")
+                save_sec_col1, save_sec_col2 = st.columns([3, 1])
+                with save_sec_col2:
+                    if st.button("💾 Save Secondary Packaging Info",
+                                 use_container_width=True, type="primary",
+                                 key="save_secondary_packaging"):
+                        if st.session_state.get('current_project_id') is not None:
+                            sec_patch = {
+                                'box_length':      st.session_state.get('box_length', 0.0),
+                                'box_width':       st.session_state.get('box_width',  0.0),
+                                'box_height':      st.session_state.get('box_height', 0.0),
+                                'dimension_unit':  st.session_state.get('pref_dimension_unit',
+                                                       st.session_state.get('dimension_unit', 'inches')),
+                                'box_result_unit': st.session_state.get('pref_volume_unit',
+                                                       st.session_state.get('box_result_unit', 'cubic inches')),
+                                'box_volume_mm3':  st.session_state.get('box_volume_mm3', 0.0),
+                                'last_modified':   datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            }
+                            pid = st.session_state.current_project_id
+                            updated = False
+                            for i, p in enumerate(st.session_state.projects):
+                                if p['project_number'] == pid:
+                                    st.session_state.projects[i].update(sec_patch)
+                                    updated = True
+                                    break
+                            if updated:
+                                save_projects()
+                                for i, p in enumerate(st.session_state.loaded_projects_overview):
+                                    if p['project_number'] == pid:
+                                        st.session_state.loaded_projects_overview[i].update(sec_patch)
+                                st.success("\u2705 Secondary Packaging info saved to project!")
+                            else:
+                                st.warning("\u26a0\ufe0f Could not find project to update.")
+                        else:
+                            st.warning("\u26a0\ufe0f No active project loaded. Save the project first from the Analyzer tab.")
+
         # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
         nav_col1, nav_col2, nav_col3 = st.columns(3)
