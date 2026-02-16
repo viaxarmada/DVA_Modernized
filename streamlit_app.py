@@ -1658,7 +1658,7 @@ def save_current_project():
         'description': st.session_state.get('project_description', ''),
         'contact': st.session_state.get('contact_info', ''),
         # Primary product data
-        'weight': st.session_state.get('primary_weight', 0.0),
+        'weight': st.session_state.get('product_weight', st.session_state.get('primary_weight', 0.0)),
         'weight_unit': live_weight_unit,
         'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0.0),
         'product_quantity': st.session_state.get('product_quantity', 1),
@@ -2267,31 +2267,12 @@ with tab1:
             curr_height = st.session_state.get('box_height', 0)
             
             if curr_length > 0 and curr_width > 0 and curr_height > 0:
-                # Calculate efficiency if we have product volume
-                if 'primary_volume_mm3' in st.session_state and st.session_state.primary_volume_mm3 > 0:
-                    # Calculate box volume in mm3
-                    dim_to_mm = {
-                        'mm': 1,
-                        'cm': 10,
-                        'inches': 25.4,
-                        'feet': 304.8
-                    }
-                    box_vol_mm3 = (curr_length * dim_to_mm[dimension_unit]) * \
-                                 (curr_width * dim_to_mm[dimension_unit]) * \
-                                 (curr_height * dim_to_mm[dimension_unit])
-                    
-                    product_vol_mm3 = st.session_state.get('total_product_volume_mm3', 
-                                                           st.session_state['primary_volume_mm3'])
-                    efficiency_pct = (product_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
-                else:
-                    efficiency_pct = 50  # Default preview
-                
-                # Create 3D preview using the existing function
+                # 3D Box Preview — dimensions only, no efficiency/liquid fill
                 preview_fig = create_3d_box_visualization(
                     curr_length,
                     curr_width,
                     curr_height,
-                    efficiency_pct,
+                    0,               # efficiency_pct = 0 → no liquid fill
                     dimension_unit
                 )
                 
@@ -2789,7 +2770,6 @@ with tab2:
             if st.button("📄 Output Report", use_container_width=True, type="primary"):
                 if st.session_state.loaded_projects_overview:
                     try:
-                        import math
                         from reportlab.lib.pagesizes import letter
                         from reportlab.lib import colors
                         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -2797,7 +2777,6 @@ with tab2:
                         from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
                                                         Paragraph, Spacer, PageBreak, Image as RLImage)
                         from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-                        from reportlab.graphics.shapes import Drawing, Rect, Line, Polygon, String
                         from io import BytesIO
 
                         # ── mm³ conversion ───────────────────────────────────────────────
@@ -2813,10 +2792,8 @@ with tab2:
                         # ── Page / column geometry ───────────────────────────────────────
                         buf = BytesIO()
                         PW  = 7.5  * inch   # usable page width
-                        TW  = PW   / 2      # data table column (left)
-                        D3W = PW   / 2      # 3D preview column (right)
-                        D3H = 2.65 * inch   # 3D preview height
-                        KW  = 1.3  * inch   # key column inside tables
+                        TW  = PW              # tables span full page width
+                        KW  = 1.5  * inch   # key column inside tables
                         VW  = TW   - KW     # value column
 
                         doc = SimpleDocTemplate(buf, pagesize=letter,
@@ -2880,12 +2857,10 @@ with tab2:
                             t.setStyle(kv_style(key_bg))
                             return t
 
-                        # ── Header builder (+20% height, uniform logo scale) ─────────────
-                        # +20% over original 0.60" baseline → 0.72"
+                        # Header: +20% height (0.72"), logo 1:1 square
                         HDR_H  = 0.72 * inch
-                        # dva_logo.png is 400×400px (1:1 square) — uniform scale
-                        LOGO_H = HDR_H * 0.80        # 80% of header cell height
-                        LOGO_W = LOGO_H * 1.0        # 1:1 aspect ratio
+                        LOGO_H = HDR_H * 0.80
+                        LOGO_W = LOGO_H * 1.0   # dva_logo.png is 400×400 (1:1)
 
                         def build_header():
                             title_p = Paragraph('Displacement Volume Analyzer', s_title)
@@ -2917,198 +2892,6 @@ with tab2:
                             ]))
                             return hdr
 
-                        # ── 3D isometric box drawing with grid-scale rulers ───────────────
-                        def make_3d_drawing(length, width, height, eff_pct, dim_unit,
-                                            dw=D3W, dh=D3H):
-                            drawing = Drawing(dw, dh)
-                            drawing.add(Rect(0,0,dw,dh,
-                                            fillColor=colors.HexColor('#0f172a'),
-                                            strokeColor=None))
-
-                            max_dim = max(length, width, height)
-                            scale   = min(dw * 0.36, dh * 0.36) / max_dim
-                            ox = dw * 0.34;  oy = dh * 0.24
-                            cos30 = math.cos(math.radians(30))
-                            sin30 = math.sin(math.radians(30))
-
-                            def iso(x, y, z):
-                                return (ox + x*cos30*scale - y*cos30*scale,
-                                        oy + x*sin30*scale + y*sin30*scale + z*scale)
-
-                            def draw_prism(lx, ly, lz, fill_hex, stroke_hex, fa):
-                                fc = colors.HexColor(fill_hex)
-                                sc = colors.HexColor(stroke_hex)
-                                c  = [iso(0,0,0),iso(lx,0,0),iso(lx,ly,0),iso(0,ly,0),
-                                      iso(0,0,lz),iso(lx,0,lz),iso(lx,ly,lz),iso(0,ly,lz)]
-                                def face(pts, al):
-                                    flat=[v for p in pts for v in p]
-                                    drawing.add(Polygon(flat, fillColor=fc,
-                                                        strokeColor=None, fillOpacity=al))
-                                face([c[0],c[1],c[5],c[4]], fa*0.85)  # front
-                                face([c[1],c[2],c[6],c[5]], fa*0.60)  # right
-                                face([c[4],c[5],c[6],c[7]], fa*1.00)  # top
-                                for a,b in [(0,1),(1,2),(2,3),(3,0),(4,5),(5,6),
-                                            (6,7),(7,4),(0,4),(1,5),(2,6),(3,7)]:
-                                    drawing.add(Line(c[a][0],c[a][1],c[b][0],c[b][1],
-                                                     strokeColor=sc, strokeWidth=1.0))
-
-                            draw_prism(length, width, height, '#1e3a5f', '#3b82f6', 0.45)
-                            fill_h = height * (eff_pct / 100)
-                            if fill_h > 0:
-                                draw_prism(length, width, fill_h, '#064e3b', '#10b981', 0.70)
-
-                            # grid-scale ruler constants
-                            n   = 5
-                            rc  = colors.HexColor('#94a3b8')   # ruler line
-                            tc  = colors.HexColor('#cbd5e1')   # tick mark
-                            lc  = colors.HexColor('#e2e8f0')   # number label
-                            ac  = colors.HexColor('#60a5fa')   # axis name label
-                            gl  = colors.HexColor('#1e293b')   # faint grid connector
-                            fs  = 5.0   # number font size
-                            als = 5.5   # axis label font size
-
-                            # HEIGHT ruler (left side)
-                            r0h = iso(-length*0.22, 0, 0)
-                            r1h = iso(-length*0.22, 0, height)
-                            drawing.add(Line(r0h[0],r0h[1],r1h[0],r1h[1],
-                                             strokeColor=rc, strokeWidth=0.8))
-                            for i in range(n+1):
-                                z_val = height * i/n
-                                rx,ry = iso(-length*0.22, 0, z_val)
-                                gx,gy = iso(0, 0, z_val)
-                                drawing.add(Line(gx,gy,rx,ry, strokeColor=gl, strokeWidth=0.4))
-                                drawing.add(Line(rx-3,ry, rx+3,ry,
-                                                 strokeColor=tc, strokeWidth=0.7))
-                                drawing.add(String(rx-5, ry-2, f'{z_val:.1f}',
-                                                   fontSize=fs, fillColor=lc, textAnchor='end'))
-                            hmx,hmy = iso(-length*0.22, 0, height*0.5)
-                            drawing.add(String(hmx-11, hmy-2, f'H ({dim_unit})',
-                                               fontSize=als, fillColor=ac, textAnchor='end'))
-
-                            # LENGTH ruler (front-bottom)
-                            r0l = iso(0, -width*0.22, 0)
-                            r1l = iso(length, -width*0.22, 0)
-                            drawing.add(Line(r0l[0],r0l[1],r1l[0],r1l[1],
-                                             strokeColor=rc, strokeWidth=0.8))
-                            for i in range(n+1):
-                                x_val = length * i/n
-                                rx,ry = iso(x_val, -width*0.22, 0)
-                                gx,gy = iso(x_val, 0, 0)
-                                drawing.add(Line(gx,gy,rx,ry, strokeColor=gl, strokeWidth=0.4))
-                                drawing.add(Line(rx,ry+3, rx,ry-3,
-                                                 strokeColor=tc, strokeWidth=0.7))
-                                drawing.add(String(rx, ry-7, f'{x_val:.1f}',
-                                                   fontSize=fs, fillColor=lc, textAnchor='middle'))
-                            lmx,lmy = iso(length*0.5, -width*0.22, 0)
-                            drawing.add(String(lmx, lmy-12, f'L ({dim_unit})',
-                                               fontSize=als, fillColor=ac, textAnchor='middle'))
-
-                            # WIDTH ruler (right side)
-                            r0w = iso(length, 0, -height*0.22)
-                            r1w = iso(length, width, -height*0.22)
-                            drawing.add(Line(r0w[0],r0w[1],r1w[0],r1w[1],
-                                             strokeColor=rc, strokeWidth=0.8))
-                            for i in range(n+1):
-                                y_val = width * i/n
-                                rx,ry = iso(length, y_val, -height*0.22)
-                                gx,gy = iso(length, y_val, 0)
-                                drawing.add(Line(gx,gy,rx,ry, strokeColor=gl, strokeWidth=0.4))
-                                drawing.add(Line(rx-3,ry, rx+3,ry,
-                                                 strokeColor=tc, strokeWidth=0.7))
-                                drawing.add(String(rx+5, ry-2, f'{y_val:.1f}',
-                                                   fontSize=fs, fillColor=lc, textAnchor='start'))
-                            wmx,wmy = iso(length, width*0.5, -height*0.22)
-                            drawing.add(String(wmx+10, wmy-2, f'W ({dim_unit})',
-                                               fontSize=als, fillColor=ac, textAnchor='start'))
-
-                            # Liquid fill level marker
-                            if fill_h > 0 and eff_pct > 1:
-                                lp = iso(length*0.5, 0, fill_h)
-                                drawing.add(String(lp[0]+4, lp[1]+2,
-                                                   f'{eff_pct:.0f}% fill',
-                                                   fontSize=4.5,
-                                                   fillColor=colors.HexColor('#10b981'),
-                                                   textAnchor='start'))
-                            return drawing
-
-                        # ── Build info panel for right side of 3D preview ────────────────
-                        def make_info_panel(project, eff_pct, rem_pct,
-                                            vol_unit, w_unit, dim_unit, qty,
-                                            unit_vol_mm3, total_vol_mm3,
-                                            box_vol_mm3, rem_mm3):
-                            """Small text panel: 3D Vol Preview title + Primary Product,
-                               Secondary Packaging, Efficiency — stacked in order."""
-                            rows = []
-
-                            # ── header label ─────────────────────────────────────────────
-                            # Info order: 3D Volume Preview → Primary Product → Secondary Packaging → Efficiency
-                            # Font sizes reduced one step from previous values
-                            rows.append([Paragraph('<b>3D Volume Preview</b>',
-                                ParagraphStyle('PH', parent=styles['Normal'],
-                                    fontSize=5.5, fontName='Helvetica-Bold',
-                                    textColor=colors.HexColor('#60a5fa')))])
-                            rows.append([Spacer(1, 2)])
-
-                            # ── Primary Product ──────────────────────────────────────────
-                            rows.append([Paragraph('<b>Primary Product</b>',
-                                ParagraphStyle('PP', parent=styles['Normal'],
-                                    fontSize=5.0, fontName='Helvetica-Bold',
-                                    textColor=colors.HexColor('#10b981')))])
-                            rows.append([Paragraph(
-                                f"{project.get('weight',0)} {w_unit}  ·  "
-                                f"{fmv(unit_vol_mm3,vol_unit,3)} {vol_unit}/unit",
-                                ParagraphStyle('PPV', parent=styles['Normal'],
-                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
-                            rows.append([Paragraph(
-                                f"Qty: {qty}  ·  Total: {fmv(total_vol_mm3,vol_unit,3)} {vol_unit}",
-                                ParagraphStyle('PPV2', parent=styles['Normal'],
-                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
-                            rows.append([Spacer(1, 2)])
-
-                            # ── Secondary Packaging ──────────────────────────────────────
-                            rows.append([Paragraph('<b>Secondary Packaging</b>',
-                                ParagraphStyle('SP', parent=styles['Normal'],
-                                    fontSize=5.0, fontName='Helvetica-Bold',
-                                    textColor=colors.HexColor('#3b82f6')))])
-                            dim_str = (f"{project.get('box_length',0)} x "
-                                       f"{project.get('box_width',0)} x "
-                                       f"{project.get('box_height',0)} {dim_unit}")
-                            rows.append([Paragraph(
-                                dim_str,
-                                ParagraphStyle('SPV', parent=styles['Normal'],
-                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
-                            rows.append([Paragraph(
-                                f"Box: {fmv(box_vol_mm3,vol_unit,3)} {vol_unit}  ·  "
-                                f"Rem: {fmv(rem_mm3,vol_unit,3)} {vol_unit}",
-                                ParagraphStyle('SPV2', parent=styles['Normal'],
-                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
-                            rows.append([Spacer(1, 2)])
-
-                            # ── Efficiency ───────────────────────────────────────────────
-                            eff_color = ('#10b981' if eff_pct >= 85 else
-                                         '#3b82f6' if eff_pct >= 70 else
-                                         '#f59e0b' if eff_pct >= 50 else '#ef4444')
-                            rows.append([Paragraph('<b>Efficiency</b>',
-                                ParagraphStyle('EFF', parent=styles['Normal'],
-                                    fontSize=5.0, fontName='Helvetica-Bold',
-                                    textColor=colors.HexColor(eff_color)))])
-                            rows.append([Paragraph(
-                                f"{eff_pct:.1f}% filled  ·  {rem_pct:.1f}% remaining",
-                                ParagraphStyle('EFFV', parent=styles['Normal'],
-                                    fontSize=4.5, textColor=colors.HexColor('#94a3b8')))])
-
-                            # Pack rows into a narrow table (fits right of 3D drawing)
-                            ip = Table([[r[0]] for r in rows],
-                                       colWidths=[D3W - 4])
-                            ip.setStyle(TableStyle([
-                                ('LEFTPADDING',   (0,0),(-1,-1), 4),
-                                ('RIGHTPADDING',  (0,0),(-1,-1), 2),
-                                ('TOPPADDING',    (0,0),(-1,-1), 0),
-                                ('BOTTOMPADDING', (0,0),(-1,-1), 0),
-                                ('BACKGROUND',    (0,0),(-1,-1),
-                                                  colors.HexColor('#0f172a')),
-                            ]))
-                            return ip
 
                         # ════════════════════════════════════════════════════════════════
                         # Per-project pages
@@ -3201,45 +2984,9 @@ with tab2:
                                 ], '#FFF3E0'))
                                 left_items.append(tiny())
 
-                            # ── Right column: 3D drawing + info panel ────────────────────
-                            right_items = []
-                            if box_vol_mm3 > 0:
-                                try:
-                                    bl = float(project.get('box_length', 0))
-                                    bw = float(project.get('box_width',  0))
-                                    bh = float(project.get('box_height', 0))
-                                    if bl>0 and bw>0 and bh>0:
-                                        d3 = make_3d_drawing(bl, bw, bh, eff_pct, dim_unit)
-                                        right_items.append(d3)
-                                        right_items.append(micro())
-                                except Exception:
-                                    pass
-
-                                info = make_info_panel(
-                                    project, eff_pct, rem_pct,
-                                    vol_unit, w_unit, dim_unit, qty,
-                                    unit_vol_mm3, total_vol_mm3,
-                                    box_vol_mm3, rem_mm3)
-                                right_items.append(info)
-
-                            # ── Two-column wrapper ───────────────────────────────────────
-                            if right_items:
-                                left_cell  = left_items
-                                right_cell = right_items
-                                two_col = Table(
-                                    [[left_cell, right_cell]],
-                                    colWidths=[TW, D3W])
-                                two_col.setStyle(TableStyle([
-                                    ('VALIGN',        (0,0),(-1,-1), 'TOP'),
-                                    ('LEFTPADDING',   (0,0),(-1,-1), 0),
-                                    ('RIGHTPADDING',  (0,0),(-1,-1), 0),
-                                    ('TOPPADDING',    (0,0),(-1,-1), 0),
-                                    ('BOTTOMPADDING', (0,0),(-1,-1), 0),
-                                ]))
-                                elements.append(two_col)
-                            else:
-                                for item in left_items:
-                                    elements.append(item)
+                            # Append all sections directly
+                            for item in left_items:
+                                elements.append(item)
 
                         # ════════════════════════════════════════════════════════════════
                         # Comparison table (multi-project)
@@ -3337,20 +3084,24 @@ with tab2:
                     
                     with col1:
                         st.markdown("#### Project Information")
+                        # All fields read directly from the saved project file
                         st.info(f"""
-                        **Project Number:** {project['project_number']}  
-                        **Project Name:** {project['project_name']}  
-                        **Designer:** {project['designer']}  
-                        **Date:** {project['date']}  
-                        **Contact:** {project['contact']}  
-                        **Description:** {project['description']}
+                        **Project Number:** {project.get('project_number', '—')}  
+                        **Project Name:** {project.get('project_name', '—')}  
+                        **Designer:** {project.get('designer', '—')}  
+                        **Date:** {project.get('date', '—')}  
+                        **Contact:** {project.get('contact', '—')}  
+                        **Description:** {project.get('description', '—')}  
+                        **Last Modified:** {project.get('last_modified', '—')}
                         """)
                     
                     with col2:
                         st.markdown("#### Calculation Results")
 
-                        # Read units directly from what was saved in the project file
+                        # All values read directly from the saved project file
                         disp_vol_unit = project.get('box_result_unit', 'cubic inches')
+                        disp_dim_unit = project.get('dimension_unit', 'inches')
+                        disp_w_unit   = project.get('weight_unit', '')
                         mm3_to_disp   = {
                             'cubic mm': 1, 'cubic cm': 0.001,
                             'cubic inches': 0.000061023744, 'cubic feet': 0.000000035315
@@ -3363,25 +3114,31 @@ with tab2:
                         unit_vol_disp  = unit_vol_mm3  * factor
                         total_vol_disp = total_vol_mm3 * factor
 
+                        # ── Primary Product (from saved Primary Calculator data) ──────
                         st.success(f"""
-                        **Primary Product:**  
-                        Weight: {project['weight']} {project.get('weight_unit', '')}  
+                        **Primary Product**  
+                        Weight: {project.get('weight', 0)} {disp_w_unit}  
                         Unit Volume: {unit_vol_disp:,.4f} {disp_vol_unit}  
                         Quantity: {qty}  
                         Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
                         """)
 
+                        # ── Secondary Packaging (from saved Box Dimensions data) ──────
                         if project.get('box_volume_mm3', 0) > 0:
-                            box_vol_disp = project['box_volume_mm3'] * factor
-                            rem_disp     = (project['box_volume_mm3'] - total_vol_mm3) * factor
-                            eff          = (total_vol_mm3 / project['box_volume_mm3'] * 100) if project['box_volume_mm3'] > 0 else 0
+                            box_vol_disp = project.get('box_volume_mm3', 0) * factor
+                            rem_mm3      = project.get('box_volume_mm3', 0) - total_vol_mm3
+                            rem_disp     = rem_mm3 * factor
+                            eff          = (total_vol_mm3 / project.get('box_volume_mm3', 1) * 100)
                             st.info(f"""
-                            **Secondary Packaging:**  
-                            Dimensions: {project['box_length']} × {project['box_width']} × {project['box_height']} {project.get('dimension_unit', '')}  
+                            **Secondary Packaging**  
+                            Dimensions: {project.get('box_length', 0)} × {project.get('box_width', 0)} × {project.get('box_height', 0)} {disp_dim_unit}  
                             Box Volume: {box_vol_disp:,.4f} {disp_vol_unit}  
+                            Product Volume: {total_vol_disp:,.4f} {disp_vol_unit}  
                             Remaining: {rem_disp:,.4f} {disp_vol_unit}  
                             Efficiency: {eff:.1f}%
                             """)
+                        else:
+                            st.caption("No box dimensions saved for this project.")
                     
                     # Remove button for this project
                     if st.button(f"Remove from Overview", key=f"remove_overview_{idx}"):
