@@ -661,6 +661,91 @@ def create_efficiency_gauge(efficiency_percentage):
     
     return fig
 
+
+def create_3d_snapshot(length, width, height, product_volume_pct,
+                        dimension_unit='inches', project_number=None):
+    """
+    Render a static PNG of the 3D volume preview using matplotlib.
+    Saves to dva_projects/project_{N}/3d_preview.png and returns the path.
+    """
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+    fig_m = plt.figure(figsize=(7, 5), facecolor='#0f172a')
+    ax    = fig_m.add_subplot(111, projection='3d')
+    ax.set_facecolor('#0f172a')
+    ax.grid(False)
+    for pane in (ax.xaxis.pane, ax.yaxis.pane, ax.zaxis.pane):
+        pane.fill = False
+        pane.set_edgecolor('none')
+    ax.set_axis_off()
+
+    l, w, h = length/2, width/2, height/2
+
+    # Box wireframe (blue)
+    bv = [[-l,-w,-h],[l,-w,-h],[l,w,-h],[-l,w,-h],
+          [-l,-w, h],[l,-w, h],[l,w, h],[-l,w, h]]
+    for e in [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],
+              [0,4],[1,5],[2,6],[3,7]]:
+        v1,v2 = bv[e[0]],bv[e[1]]
+        ax.plot([v1[0],v2[0]],[v1[1],v2[1]],[v1[2],v2[2]],
+                color='#3b82f6', lw=1.8, zorder=3)
+
+    # Liquid fill (green)
+    if product_volume_pct > 0:
+        fh = -h + height * (product_volume_pct / 100)
+        def quad(a,b,c,d): return [list(a),list(b),list(c),list(d)]
+        faces = [
+            quad([-l,-w,-h],[l,-w,-h],[l,w,-h],[-l,w,-h]),
+            quad([-l,-w,fh],[l,-w,fh],[l,w,fh],[-l,w,fh]),
+            quad([-l,-w,-h],[l,-w,-h],[l,-w,fh],[-l,-w,fh]),
+            quad([-l, w,-h],[l, w,-h],[l, w,fh],[-l, w,fh]),
+            quad([-l,-w,-h],[-l,w,-h],[-l,w,fh],[-l,-w,fh]),
+            quad([l,-w,-h],[l,w,-h],[l,w,fh],[l,-w,fh]),
+        ]
+        ax.add_collection3d(Poly3DCollection(faces, alpha=0.35,
+            facecolor='#10b981', edgecolor='#059669', lw=0.5))
+
+    # Grid (light grey, same 3-face pattern as interactive view)
+    gc = '#4b5563'
+    n  = 5
+    for i in range(n+1):
+        gx=-l+2*l*i/n; gy=-w+2*w*i/n; gz=-h+2*h*i/n
+        ax.plot([-l,l],[gy,gy],[-h,-h],color=gc,lw=0.5,alpha=0.6)
+        ax.plot([gx,gx],[-w,w],[-h,-h],color=gc,lw=0.5,alpha=0.6)
+        ax.plot([gx,gx],[-w,-w],[-h,h],color=gc,lw=0.5,alpha=0.6)
+        ax.plot([-l,l],[-w,-w],[gz,gz],color=gc,lw=0.5,alpha=0.6)
+        ax.plot([-l,-l],[-w,w],[gz,gz],color=gc,lw=0.5,alpha=0.6)
+        ax.plot([-l,-l],[gy,gy],[-h,h],color=gc,lw=0.5,alpha=0.6)
+
+    ax.view_init(elev=22, azim=-55)
+    ax.set_box_aspect([length, width, height])
+
+    # Dimension labels
+    tc = '#b0b8c4'
+    ax.text(0, -w*1.45, -h,  f'L {length:.0f} {dimension_unit}',
+            color=tc, fontsize=7, ha='center', va='top')
+    ax.text(l*1.45, 0, -h,  f'W {width:.0f} {dimension_unit}',
+            color=tc, fontsize=7, ha='left',   va='center')
+    ax.text(-l*1.35, w*1.2, 0, f'H {height:.0f} {dimension_unit}',
+            color=tc, fontsize=7, ha='right',  va='center')
+
+    plt.tight_layout(pad=0)
+
+    if project_number is not None:
+        folder = os.path.join('dva_projects', f'project_{project_number}')
+    else:
+        folder = os.path.join('dva_projects', 'unsaved')
+    os.makedirs(folder, exist_ok=True)
+    img_path = os.path.join(folder, '3d_preview.png')
+    fig_m.savefig(img_path, dpi=150, bbox_inches='tight',
+                  facecolor='#0f172a', edgecolor='none')
+    plt.close(fig_m)
+    return img_path
+
 def create_3d_box_visualization(length, width, height, product_volume_pct, dimension_unit='inches'):
     """Create interactive 3D box with dimension labels"""
     
@@ -915,89 +1000,6 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         grid_line(-l, gy, -h, -l, gy,  h)   # column (along z)
         grid_line(-l, -w, gz, -l,  w, gz)   # row (along y)
 
-    # === SCALE RULERS — dark grey, numbers static on the scale plane ===
-
-    # HEIGHT scale (left-back vertical)
-    offset_x   = -l - 0.28 * l
-    offset_y   =  w + 0.15 * w
-
-    fig.add_trace(go.Scatter3d(
-        x=[offset_x, offset_x], y=[offset_y, offset_y], z=[-h, h],
-        mode='lines', line=dict(color=scale_col, width=3),
-        showlegend=False, hoverinfo='skip'))
-
-    height_increment = height / num_ticks
-    for i in range(num_ticks + 1):
-        tick_z   = -h + 2*h * i / num_ticks
-        tick_val = int(round(i * height_increment))
-        # Tick mark (in-plane horizontal nub)
-        fig.add_trace(go.Scatter3d(
-            x=[offset_x - 0.06*l, offset_x + 0.06*l],
-            y=[offset_y, offset_y], z=[tick_z, tick_z],
-            mode='lines', line=dict(color=scale_col, width=2),
-            showlegend=False, hoverinfo='skip'))
-        # Number — placed AT the tick mark (same x, y, z plane as ruler)
-        fig.add_trace(go.Scatter3d(
-            x=[offset_x - 0.03*l], y=[offset_y], z=[tick_z],
-            mode='text', text=[str(tick_val)],
-            textfont=dict(size=15, color=scale_col),
-            textposition='middle left',
-            showlegend=False, hoverinfo='skip'))
-
-    # LENGTH scale (front-bottom horizontal)
-    offset_z     = -h - 0.28 * h
-    offset_y_len = -w - 0.18 * w
-
-    fig.add_trace(go.Scatter3d(
-        x=[-l, l], y=[offset_y_len, offset_y_len], z=[offset_z, offset_z],
-        mode='lines', line=dict(color=scale_col, width=3),
-        showlegend=False, hoverinfo='skip'))
-
-    length_increment = length / num_ticks
-    for i in range(num_ticks + 1):
-        tick_x   = -l + 2*l * i / num_ticks
-        tick_val = int(round(i * length_increment))
-        # Tick mark (vertical nub in the scale plane)
-        fig.add_trace(go.Scatter3d(
-            x=[tick_x, tick_x],
-            y=[offset_y_len, offset_y_len],
-            z=[offset_z - 0.06*h, offset_z + 0.06*h],
-            mode='lines', line=dict(color=scale_col, width=2),
-            showlegend=False, hoverinfo='skip'))
-        # Number — at tick mark, in the scale plane
-        fig.add_trace(go.Scatter3d(
-            x=[tick_x], y=[offset_y_len], z=[offset_z - 0.03*h],
-            mode='text', text=[str(tick_val)],
-            textfont=dict(size=15, color=scale_col),
-            textposition='bottom center',
-            showlegend=False, hoverinfo='skip'))
-
-    # WIDTH scale (right-bottom, along y)
-    offset_x_wid = l + 0.28 * l
-
-    fig.add_trace(go.Scatter3d(
-        x=[offset_x_wid, offset_x_wid], y=[-w, w], z=[offset_z, offset_z],
-        mode='lines', line=dict(color=scale_col, width=3),
-        showlegend=False, hoverinfo='skip'))
-
-    width_increment = width / num_ticks
-    for i in range(num_ticks + 1):
-        tick_y   = -w + 2*w * i / num_ticks
-        tick_val = int(round(i * width_increment))
-        # Tick mark (horizontal nub in the scale plane)
-        fig.add_trace(go.Scatter3d(
-            x=[offset_x_wid - 0.06*l, offset_x_wid + 0.06*l],
-            y=[tick_y, tick_y], z=[offset_z, offset_z],
-            mode='lines', line=dict(color=scale_col, width=2),
-            showlegend=False, hoverinfo='skip'))
-        # Number — at tick mark, in the scale plane
-        fig.add_trace(go.Scatter3d(
-            x=[offset_x_wid + 0.03*l], y=[tick_y], z=[offset_z],
-            mode='text', text=[str(tick_val)],
-            textfont=dict(size=15, color=scale_col),
-            textposition='middle right',
-            showlegend=False, hoverinfo='skip'))
-    
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
@@ -1010,7 +1012,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
             ),
             aspectmode='data'
         ),
-        height=600,
+        height=420,
         margin=dict(l=0, r=0, t=0, b=0),
         paper_bgcolor='rgba(0,0,0,0)',
         showlegend=False
@@ -2505,7 +2507,7 @@ with tab1:
                 box_volume = st.session_state['box_length'] * st.session_state['box_width'] * st.session_state['box_height']
                 
                 # Create two columns: info panel (left) and 3D graphic (right)
-                info_col, graphic_col = st.columns([1, 3], gap="large")
+                info_col, graphic_col = st.columns([1.3, 2.7], gap="large")
                 
                 with info_col:
                     # Floating info panel with all text information
@@ -2571,7 +2573,24 @@ with tab1:
             # Save Analysis Data Button
             st.markdown("")  # Small spacing
             if st.button("💾 Save Analysis Data", use_container_width=True, type="secondary", key="save_analysis_data"):
-                # Save complete analysis data including box dimensions
+                pid = st.session_state.get('current_project_id')
+
+                # Render and save 3D snapshot PNG
+                snapshot_path = None
+                try:
+                    snapshot_path = create_3d_snapshot(
+                        st.session_state['box_length'],
+                        st.session_state['box_width'],
+                        st.session_state['box_height'],
+                        volume_efficiency_percentage,
+                        st.session_state.pref_dimension_unit,
+                        project_number=pid
+                    )
+                    st.session_state.snapshot_path = snapshot_path
+                except Exception as snap_err:
+                    st.warning(f"⚠️ 3D snapshot failed: {snap_err}")
+
+                # Build analysis data dict (includes snapshot path)
                 analysis_data = {
                     'primary_volume_mm3': st.session_state.get('primary_volume_mm3', 0),
                     'box_volume_mm3': st.session_state.get('box_volume_mm3', 0),
@@ -2585,20 +2604,30 @@ with tab1:
                     'pref_dimension_unit': st.session_state.pref_dimension_unit,
                     'pref_volume_unit': st.session_state.pref_volume_unit,
                     'pref_weight_unit': st.session_state.pref_weight_unit,
+                    'snapshot_path': snapshot_path,
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 }
-                
-                # Save to session state
+
+                # Patch snapshot_path into the saved project record
+                if pid is not None and snapshot_path:
+                    for i, p in enumerate(st.session_state.projects):
+                        if p['project_number'] == pid:
+                            st.session_state.projects[i]['snapshot_path'] = snapshot_path
+                            break
+                    save_projects()
+
+                # Save to session state and JSON
                 st.session_state.saved_analysis_data = analysis_data
-                
-                # Save to persistent file
                 try:
                     with open('dva_analysis_data.json', 'w') as f:
                         json.dump(analysis_data, f, indent=2)
-                    st.success("✅ Analysis data saved to file and session!")
+                    if snapshot_path:
+                        st.success("✅ Analysis data and 3D snapshot saved!")
+                    else:
+                        st.success("✅ Analysis data saved!")
                 except Exception as e:
                     st.warning(f"⚠️ Saved to session but file save failed: {e}")
-                
+
                 time.sleep(0.5)
                 st.rerun()
             
@@ -2993,6 +3022,21 @@ with tab2:
                                     ['Remaining Space:',  f"{rem_pct:.1f}%"],
                                 ], '#FFF3E0'))
                                 left_items.append(tiny())
+
+                            # 3D snapshot image (if available)
+                            snap = project.get('snapshot_path') or st.session_state.get('snapshot_path')
+                            if snap and os.path.exists(snap):
+                                from reportlab.platypus import Image as RLImage
+                                try:
+                                    img_w = PW * 0.62
+                                    img_h = img_w * (5/7)
+                                    left_items.append(micro())
+                                    left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
+                                    left_items.append(micro())
+                                    left_items.append(RLImage(snap, width=img_w, height=img_h))
+                                    left_items.append(tiny())
+                                except Exception:
+                                    pass
 
                             # Append all sections directly
                             for item in left_items:
