@@ -725,22 +725,22 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         hoverinfo='skip'
     ))
     
-    # Add dimension annotations
-    # Length arrow (along X-axis, bottom front)
+    # Dimension annotations — no efficiency label
+    # Length: label at LEFT end of the line
     fig.add_trace(go.Scatter3d(
         x=[-l, l],
         y=[-w-0.3*w, -w-0.3*w],
         z=[-h, -h],
         mode='lines+text',
         line=dict(color='white', width=3),
-        text=['', f'{length:.1f} {dimension_unit}'],
-        textposition='top center',
+        text=[f'{length:.1f} {dimension_unit}', ''],
+        textposition='top left',
         textfont=dict(size=12, color='white'),
         showlegend=False,
         hoverinfo='skip'
     ))
-    
-    # Width arrow (along Y-axis, bottom right)
+
+    # Width: label BELOW the line (bottom center at far end)
     fig.add_trace(go.Scatter3d(
         x=[l+0.3*l, l+0.3*l],
         y=[-w, w],
@@ -748,13 +748,13 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         mode='lines+text',
         line=dict(color='white', width=3),
         text=['', f'{width:.1f} {dimension_unit}'],
-        textposition='top center',
+        textposition='bottom center',
         textfont=dict(size=12, color='white'),
         showlegend=False,
         hoverinfo='skip'
     ))
-    
-    # Height arrow (along Z-axis, back left)
+
+    # Height: label at top (middle right)
     fig.add_trace(go.Scatter3d(
         x=[-l-0.3*l, -l-0.3*l],
         y=[w, w],
@@ -764,18 +764,6 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         text=['', f'{height:.1f} {dimension_unit}'],
         textposition='middle right',
         textfont=dict(size=12, color='white'),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Add efficiency label
-    fig.add_trace(go.Scatter3d(
-        x=[0],
-        y=[0],
-        z=[h+0.4*h],
-        mode='text',
-        text=[f'{product_volume_pct:.1f}% Efficient'],
-        textfont=dict(size=14, color=box_color),
         showlegend=False,
         hoverinfo='skip'
     ))
@@ -894,141 +882,121 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
                 hoverinfo='skip'
             ))
     
-    # === MEASUREMENT SCALES WITH INCREMENTAL NUMBERS ONLY ===
-    
-    # HEIGHT scale (left side, back)
-    offset_x = -l - 0.3 * l
-    offset_y = w + 0.2 * w
-    
-    # Vertical measurement line
-    fig.add_trace(go.Scatter3d(
-        x=[offset_x, offset_x],
-        y=[offset_y, offset_y],
-        z=[-h, h],
-        mode='lines',
-        line=dict(color='white', width=4),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Height ticks with NUMBERS (increments based on height)
+    # === GRID PLANES (behind cube, dark grey) ===
     num_ticks = 5
+    grid_col  = '#404040'   # dark grey for grid and scale
+    scale_col = '#555555'   # slightly lighter for ruler lines
+
+    # Helper: add a faint grid line
+    def grid_line(x0,y0,z0, x1,y1,z1):
+        fig.add_trace(go.Scatter3d(
+            x=[x0,x1], y=[y0,y1], z=[z0,z1],
+            mode='lines', line=dict(color=grid_col, width=1),
+            showlegend=False, hoverinfo='skip'))
+
+    # Bottom face grid (z = -h plane) — x-rows and y-columns
+    for i in range(num_ticks + 1):
+        gx = -l + 2*l * i / num_ticks
+        gy = -w + 2*w * i / num_ticks
+        grid_line(-l, gy, -h,  l, gy, -h)   # row (along x)
+        grid_line(gx, -w, -h, gx,  w, -h)   # column (along y)
+
+    # Front face grid (y = -w plane) — x-columns and z-rows
+    for i in range(num_ticks + 1):
+        gx = -l + 2*l * i / num_ticks
+        gz = -h + 2*h * i / num_ticks
+        grid_line(gx, -w, -h, gx, -w,  h)   # column (along z)
+        grid_line(-l, -w, gz,  l, -w, gz)   # row (along x)
+
+    # Left face grid (x = -l plane) — y-columns and z-rows
+    for i in range(num_ticks + 1):
+        gy = -w + 2*w * i / num_ticks
+        gz = -h + 2*h * i / num_ticks
+        grid_line(-l, gy, -h, -l, gy,  h)   # column (along z)
+        grid_line(-l, -w, gz, -l,  w, gz)   # row (along y)
+
+    # === SCALE RULERS — dark grey, numbers static on the scale plane ===
+
+    # HEIGHT scale (left-back vertical)
+    offset_x   = -l - 0.28 * l
+    offset_y   =  w + 0.15 * w
+
+    fig.add_trace(go.Scatter3d(
+        x=[offset_x, offset_x], y=[offset_y, offset_y], z=[-h, h],
+        mode='lines', line=dict(color=scale_col, width=2),
+        showlegend=False, hoverinfo='skip'))
+
     height_increment = height / num_ticks
     for i in range(num_ticks + 1):
-        tick_z = -h + (2*h * i / num_ticks)
-        tick_value = i * height_increment
-        
-        # Tick mark
+        tick_z   = -h + 2*h * i / num_ticks
+        tick_val = int(round(i * height_increment))
+        # Tick mark (in-plane horizontal nub)
         fig.add_trace(go.Scatter3d(
-            x=[offset_x - 0.05*l, offset_x + 0.05*l],
-            y=[offset_y, offset_y],
-            z=[tick_z, tick_z],
-            mode='lines',
-            line=dict(color='white', width=3),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-        
-        # NUMBER label (offset left from line)
+            x=[offset_x - 0.04*l, offset_x + 0.04*l],
+            y=[offset_y, offset_y], z=[tick_z, tick_z],
+            mode='lines', line=dict(color=scale_col, width=2),
+            showlegend=False, hoverinfo='skip'))
+        # Number — placed AT the tick mark (same x, y, z plane as ruler)
         fig.add_trace(go.Scatter3d(
-            x=[offset_x - 0.15*l],
-            y=[offset_y],
-            z=[tick_z],
-            mode='text',
-            text=[f'<b>{tick_value:.1f}</b>'],
-            textfont=dict(size=14, color='white'),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-    
-    # LENGTH scale (bottom front)
-    offset_z = -h - 0.3 * h
-    offset_y_len = -w - 0.2 * w
-    
-    # Horizontal measurement line
+            x=[offset_x - 0.02*l], y=[offset_y], z=[tick_z],
+            mode='text', text=[str(tick_val)],
+            textfont=dict(size=10, color=scale_col),
+            textposition='middle left',
+            showlegend=False, hoverinfo='skip'))
+
+    # LENGTH scale (front-bottom horizontal)
+    offset_z     = -h - 0.28 * h
+    offset_y_len = -w - 0.18 * w
+
     fig.add_trace(go.Scatter3d(
-        x=[-l, l],
-        y=[offset_y_len, offset_y_len],
-        z=[offset_z, offset_z],
-        mode='lines',
-        line=dict(color='white', width=4),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Length ticks with NUMBERS
+        x=[-l, l], y=[offset_y_len, offset_y_len], z=[offset_z, offset_z],
+        mode='lines', line=dict(color=scale_col, width=2),
+        showlegend=False, hoverinfo='skip'))
+
     length_increment = length / num_ticks
     for i in range(num_ticks + 1):
-        tick_x = -l + (2*l * i / num_ticks)
-        tick_value = i * length_increment
-        
-        # Tick mark
+        tick_x   = -l + 2*l * i / num_ticks
+        tick_val = int(round(i * length_increment))
+        # Tick mark (vertical nub in the scale plane)
         fig.add_trace(go.Scatter3d(
             x=[tick_x, tick_x],
             y=[offset_y_len, offset_y_len],
-            z=[offset_z - 0.05*h, offset_z + 0.05*h],
-            mode='lines',
-            line=dict(color='white', width=3),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-        
-        # NUMBER label (offset below line)
+            z=[offset_z - 0.04*h, offset_z + 0.04*h],
+            mode='lines', line=dict(color=scale_col, width=2),
+            showlegend=False, hoverinfo='skip'))
+        # Number — at tick mark, in the scale plane
         fig.add_trace(go.Scatter3d(
-            x=[tick_x],
-            y=[offset_y_len],
-            z=[offset_z - 0.18*h],
-            mode='text',
-            text=[f'<b>{tick_value:.1f}</b>'],
-            textfont=dict(size=14, color='white'),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-    
-    # WIDTH scale (bottom right)
-    offset_x_wid = l + 0.3 * l
-    
-    # Depth measurement line
+            x=[tick_x], y=[offset_y_len], z=[offset_z - 0.02*h],
+            mode='text', text=[str(tick_val)],
+            textfont=dict(size=10, color=scale_col),
+            textposition='bottom center',
+            showlegend=False, hoverinfo='skip'))
+
+    # WIDTH scale (right-bottom, along y)
+    offset_x_wid = l + 0.28 * l
+
     fig.add_trace(go.Scatter3d(
-        x=[offset_x_wid, offset_x_wid],
-        y=[-w, w],
-        z=[offset_z, offset_z],
-        mode='lines',
-        line=dict(color='white', width=4),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Width ticks with NUMBERS
+        x=[offset_x_wid, offset_x_wid], y=[-w, w], z=[offset_z, offset_z],
+        mode='lines', line=dict(color=scale_col, width=2),
+        showlegend=False, hoverinfo='skip'))
+
     width_increment = width / num_ticks
     for i in range(num_ticks + 1):
-        tick_y = -w + (2*w * i / num_ticks)
-        tick_value = i * width_increment
-        
-        # Tick mark
+        tick_y   = -w + 2*w * i / num_ticks
+        tick_val = int(round(i * width_increment))
+        # Tick mark (horizontal nub in the scale plane)
         fig.add_trace(go.Scatter3d(
-            x=[offset_x_wid - 0.05*l, offset_x_wid + 0.05*l],
-            y=[tick_y, tick_y],
-            z=[offset_z, offset_z],
-            mode='lines',
-            line=dict(color='white', width=3),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-        
-        # NUMBER label (offset right from line)
+            x=[offset_x_wid - 0.04*l, offset_x_wid + 0.04*l],
+            y=[tick_y, tick_y], z=[offset_z, offset_z],
+            mode='lines', line=dict(color=scale_col, width=2),
+            showlegend=False, hoverinfo='skip'))
+        # Number — at tick mark, in the scale plane
         fig.add_trace(go.Scatter3d(
-            x=[offset_x_wid + 0.15*l],
-            y=[tick_y],
-            z=[offset_z],
-            mode='text',
-            text=[f'<b>{tick_value:.1f}</b>'],
-            textfont=dict(size=14, color='white'),
-            showlegend=False,
-            hoverinfo='skip'
-        ))
-    
-    # NO OTHER TEXT - Clean graphic with only measurement numbers!
+            x=[offset_x_wid + 0.02*l], y=[tick_y], z=[offset_z],
+            mode='text', text=[str(tick_val)],
+            textfont=dict(size=10, color=scale_col),
+            textposition='middle right',
+            showlegend=False, hoverinfo='skip'))
     
     fig.update_layout(
         scene=dict(
@@ -2539,33 +2507,33 @@ with tab1:
                     st.markdown(f"""
                     <div style='background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%); 
                                 border-left: 4px solid #3b82f6; 
-                                padding: 20px; 
+                                padding: 14px; 
                                 border-radius: 10px;
                                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                                 margin-bottom: 20px;
                                 position: relative;
                                 z-index: 1;'>
-                        <h4 style='color: #3b82f6; margin-top: 0;'>📦 SECONDARY PACKAGING</h4>
-                        <p style='font-size: 18px; font-weight: bold; color: #3b82f6; margin: 5px 0;'>
+                        <div style='font-size: 11px; font-weight: bold; color: #3b82f6; margin-top: 0; margin-bottom: 4px;'>📦 SECONDARY PACKAGING</div>
+                        <p style='font-size: 13px; font-weight: bold; color: #3b82f6; margin: 4px 0;'>
                             {box_volume:.2f} {st.session_state.pref_dimension_unit}³
                         </p>
-                        <p style='font-size: 14px; color: #94a3b8; margin: 5px 0;'>
-                            {st.session_state['box_length']:.1f}" × {st.session_state['box_width']:.1f}" × {st.session_state['box_height']:.1f}"
+                        <p style='font-size: 10px; color: #94a3b8; margin: 4px 0;'>
+                            {st.session_state['box_length']:.1f} × {st.session_state['box_width']:.1f} × {st.session_state['box_height']:.1f} {st.session_state.pref_dimension_unit}
                         </p>
-                        <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 15px 0;'>
-                        <h4 style='color: #10b981; margin-top: 0;'>🎁 PRIMARY PRODUCT</h4>
-                        <p style='font-size: 18px; font-weight: bold; color: #10b981; margin: 5px 0;'>
+                        <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 10px 0;'>
+                        <div style='font-size: 11px; font-weight: bold; color: #10b981; margin-top: 0; margin-bottom: 4px;'>🎁 PRIMARY PRODUCT</div>
+                        <p style='font-size: 13px; font-weight: bold; color: #10b981; margin: 4px 0;'>
                             {product_vol_display:.2f} {st.session_state.pref_dimension_unit}³
                         </p>
-                        <p style='font-size: 14px; color: #94a3b8; margin: 5px 0;'>
+                        <p style='font-size: 10px; color: #94a3b8; margin: 4px 0;'>
                             Quantity: {st.session_state.get('product_quantity', 1)} units
                         </p>
-                        <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 15px 0;'>
-                        <h4 style='color: white; margin-top: 0;'>📊 EFFICIENCY</h4>
-                        <p style='font-size: 28px; font-weight: bold; color: white; margin: 5px 0;'>
+                        <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 10px 0;'>
+                        <div style='font-size: 11px; font-weight: bold; color: white; margin-top: 0; margin-bottom: 4px;'>📊 EFFICIENCY</div>
+                        <p style='font-size: 20px; font-weight: bold; color: white; margin: 4px 0;'>
                             {volume_efficiency_percentage:.1f}%
                         </p>
-                        <p style='font-size: 14px; color: #94a3b8; margin: 5px 0;'>
+                        <p style='font-size: 10px; color: #94a3b8; margin: 4px 0;'>
                             Volume Utilization
                         </p>
                     </div>
