@@ -732,10 +732,10 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         y=[-w-0.3*w, -w-0.3*w],
         z=[-h, -h],
         mode='lines+text',
-        line=dict(color='white', width=3),
+        line=dict(color='#b0b8c4', width=2),
         text=[f'{length:.1f} {dimension_unit}', ''],
         textposition='top left',
-        textfont=dict(size=12, color='white'),
+        textfont=dict(size=12, color='#b0b8c4'),
         showlegend=False,
         hoverinfo='skip'
     ))
@@ -746,10 +746,10 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         y=[-w, w],
         z=[-h, -h],
         mode='lines+text',
-        line=dict(color='white', width=3),
+        line=dict(color='#b0b8c4', width=2),
         text=['', f'{width:.1f} {dimension_unit}'],
         textposition='bottom center',
-        textfont=dict(size=12, color='white'),
+        textfont=dict(size=12, color='#b0b8c4'),
         showlegend=False,
         hoverinfo='skip'
     ))
@@ -760,10 +760,10 @@ def create_3d_box_visualization(length, width, height, product_volume_pct, dimen
         y=[w, w],
         z=[-h, h],
         mode='lines+text',
-        line=dict(color='white', width=3),
+        line=dict(color='#b0b8c4', width=2),
         text=['', f'{height:.1f} {dimension_unit}'],
         textposition='middle right',
-        textfont=dict(size=12, color='white'),
+        textfont=dict(size=12, color='#b0b8c4'),
         showlegend=False,
         hoverinfo='skip'
     ))
@@ -884,14 +884,14 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
     
     # === GRID PLANES (behind cube, dark grey) ===
     num_ticks = 5
-    grid_col  = '#404040'   # dark grey for grid and scale
-    scale_col = '#555555'   # slightly lighter for ruler lines
+    grid_col  = '#9ca3af'   # light grey for grid lines
+    scale_col = '#b0b8c4'   # light grey for rulers and labels
 
-    # Helper: add a faint grid line
+    # Helper: draw a grid line
     def grid_line(x0,y0,z0, x1,y1,z1):
         fig.add_trace(go.Scatter3d(
             x=[x0,x1], y=[y0,y1], z=[z0,z1],
-            mode='lines', line=dict(color=grid_col, width=1),
+            mode='lines', line=dict(color=grid_col, width=1.5),
             showlegend=False, hoverinfo='skip'))
 
     # Bottom face grid (z = -h plane) — x-rows and y-columns
@@ -923,7 +923,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
 
     fig.add_trace(go.Scatter3d(
         x=[offset_x, offset_x], y=[offset_y, offset_y], z=[-h, h],
-        mode='lines', line=dict(color=scale_col, width=2),
+        mode='lines', line=dict(color=scale_col, width=3),
         showlegend=False, hoverinfo='skip'))
 
     height_increment = height / num_ticks
@@ -932,15 +932,15 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         tick_val = int(round(i * height_increment))
         # Tick mark (in-plane horizontal nub)
         fig.add_trace(go.Scatter3d(
-            x=[offset_x - 0.04*l, offset_x + 0.04*l],
+            x=[offset_x - 0.06*l, offset_x + 0.06*l],
             y=[offset_y, offset_y], z=[tick_z, tick_z],
             mode='lines', line=dict(color=scale_col, width=2),
             showlegend=False, hoverinfo='skip'))
         # Number — placed AT the tick mark (same x, y, z plane as ruler)
         fig.add_trace(go.Scatter3d(
-            x=[offset_x - 0.02*l], y=[offset_y], z=[tick_z],
+            x=[offset_x - 0.03*l], y=[offset_y], z=[tick_z],
             mode='text', text=[str(tick_val)],
-            textfont=dict(size=10, color=scale_col),
+            textfont=dict(size=15, color=scale_col),
             textposition='middle left',
             showlegend=False, hoverinfo='skip'))
 
@@ -950,7 +950,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
 
     fig.add_trace(go.Scatter3d(
         x=[-l, l], y=[offset_y_len, offset_y_len], z=[offset_z, offset_z],
-        mode='lines', line=dict(color=scale_col, width=2),
+        mode='lines', line=dict(color=scale_col, width=3),
         showlegend=False, hoverinfo='skip'))
 
     length_increment = length / num_ticks
@@ -961,14 +961,14 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         fig.add_trace(go.Scatter3d(
             x=[tick_x, tick_x],
             y=[offset_y_len, offset_y_len],
-            z=[offset_z - 0.04*h, offset_z + 0.04*h],
+            z=[offset_z - 0.06*h, offset_z + 0.06*h],
             mode='lines', line=dict(color=scale_col, width=2),
             showlegend=False, hoverinfo='skip'))
         # Number — at tick mark, in the scale plane
         fig.add_trace(go.Scatter3d(
-            x=[tick_x], y=[offset_y_len], z=[offset_z - 0.02*h],
+            x=[tick_x], y=[offset_y_len], z=[offset_z - 0.03*h],
             mode='text', text=[str(tick_val)],
-            textfont=dict(size=10, color=scale_col),
+            textfont=dict(size=15, color=scale_col),
             textposition='bottom center',
             showlegend=False, hoverinfo='skip'))
 
@@ -977,7 +977,7 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
 
     fig.add_trace(go.Scatter3d(
         x=[offset_x_wid, offset_x_wid], y=[-w, w], z=[offset_z, offset_z],
-        mode='lines', line=dict(color=scale_col, width=2),
+        mode='lines', line=dict(color=scale_col, width=3),
         showlegend=False, hoverinfo='skip'))
 
     width_increment = width / num_ticks
@@ -986,15 +986,15 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         tick_val = int(round(i * width_increment))
         # Tick mark (horizontal nub in the scale plane)
         fig.add_trace(go.Scatter3d(
-            x=[offset_x_wid - 0.04*l, offset_x_wid + 0.04*l],
+            x=[offset_x_wid - 0.06*l, offset_x_wid + 0.06*l],
             y=[tick_y, tick_y], z=[offset_z, offset_z],
             mode='lines', line=dict(color=scale_col, width=2),
             showlegend=False, hoverinfo='skip'))
         # Number — at tick mark, in the scale plane
         fig.add_trace(go.Scatter3d(
-            x=[offset_x_wid + 0.02*l], y=[tick_y], z=[offset_z],
+            x=[offset_x_wid + 0.03*l], y=[tick_y], z=[offset_z],
             mode='text', text=[str(tick_val)],
-            textfont=dict(size=10, color=scale_col),
+            textfont=dict(size=15, color=scale_col),
             textposition='middle right',
             showlegend=False, hoverinfo='skip'))
     
@@ -1561,6 +1561,7 @@ def create_new_project():
         del st.session_state.saved_secondary_data
     if 'saved_analysis_data' in st.session_state:
         del st.session_state.saved_analysis_data
+    st.session_state.pending_secondary = {}  # Clear temp secondary data for new project
     
     # Delete persistent data files
     if os.path.exists('dva_analysis_data.json'):
@@ -1643,6 +1644,10 @@ def save_current_project():
         'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     }
     
+    # Merge secondary packaging data captured before project was first saved
+    if st.session_state.get('pending_secondary'):
+        project_data.update(st.session_state.pending_secondary)
+
     # Update existing or add new
     if st.session_state.current_project_id is not None:
         # Update existing project
@@ -2340,42 +2345,42 @@ with tab1:
                     </div>
                     """, unsafe_allow_html=True)
 
-                # ── Save Secondary Packaging Info ────────────────────────────
+                # ── Save Secondary Packaging ─────────────────────────────────
                 st.markdown("")
-                save_sec_col1, save_sec_col2 = st.columns([3, 1])
-                with save_sec_col2:
-                    if st.button("💾 Save Secondary Packaging Info",
-                                 use_container_width=True, type="primary",
-                                 key="save_secondary_packaging"):
-                        if st.session_state.get('current_project_id') is not None:
-                            sec_patch = {
-                                'box_length':      st.session_state.get('box_length', 0.0),
-                                'box_width':       st.session_state.get('box_width',  0.0),
-                                'box_height':      st.session_state.get('box_height', 0.0),
-                                'dimension_unit':  st.session_state.get('pref_dimension_unit',
-                                                       st.session_state.get('dimension_unit', 'inches')),
-                                'box_result_unit': st.session_state.get('pref_volume_unit',
-                                                       st.session_state.get('box_result_unit', 'cubic inches')),
-                                'box_volume_mm3':  st.session_state.get('box_volume_mm3', 0.0),
-                                'last_modified':   datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            }
-                            pid = st.session_state.current_project_id
-                            updated = False
-                            for i, p in enumerate(st.session_state.projects):
+                if st.button("💾 Save Secondary Packaging",
+                             use_container_width=True,
+                             key="save_secondary_packaging"):
+                    sec_patch = {
+                        'box_length':      st.session_state.get('box_length', 0.0),
+                        'box_width':       st.session_state.get('box_width',  0.0),
+                        'box_height':      st.session_state.get('box_height', 0.0),
+                        'dimension_unit':  st.session_state.get('pref_dimension_unit',
+                                               st.session_state.get('dimension_unit', 'inches')),
+                        'box_result_unit': st.session_state.get('pref_volume_unit',
+                                               st.session_state.get('box_result_unit', 'cubic inches')),
+                        'box_volume_mm3':  st.session_state.get('box_volume_mm3', 0.0),
+                        'last_modified':   datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                    }
+                    # Always store in temp memory — works before project is saved
+                    st.session_state.pending_secondary = sec_patch
+                    if st.session_state.get('current_project_id') is not None:
+                        pid = st.session_state.current_project_id
+                        updated = False
+                        for i, p in enumerate(st.session_state.projects):
+                            if p['project_number'] == pid:
+                                st.session_state.projects[i].update(sec_patch)
+                                updated = True
+                                break
+                        if updated:
+                            save_projects()
+                            for i, p in enumerate(st.session_state.loaded_projects_overview):
                                 if p['project_number'] == pid:
-                                    st.session_state.projects[i].update(sec_patch)
-                                    updated = True
-                                    break
-                            if updated:
-                                save_projects()
-                                for i, p in enumerate(st.session_state.loaded_projects_overview):
-                                    if p['project_number'] == pid:
-                                        st.session_state.loaded_projects_overview[i].update(sec_patch)
-                                st.success("\u2705 Secondary Packaging info saved to project!")
-                            else:
-                                st.warning("\u26a0\ufe0f Could not find project to update.")
+                                    st.session_state.loaded_projects_overview[i].update(sec_patch)
+                            st.success("✅ Secondary Packaging saved to project!")
                         else:
-                            st.warning("\u26a0\ufe0f No active project loaded. Save the project first from the Analyzer tab.")
+                            st.warning("⚠️ Could not find project record.")
+                    else:
+                        st.success("✅ Secondary Packaging saved! Will be included when project is saved.")
 
         # Persistent Bottom Navigation - All 3 Sections
         st.markdown("---")
