@@ -2953,7 +2953,7 @@ with tab2:
                                     textColor=colors.HexColor('#1565C0'),
                                     alignment=TA_LEFT, spaceAfter=1)
                         s_sub   = ParagraphStyle('DVASub', parent=styles['Normal'],
-                                    fontSize=7.5, textColor=colors.HexColor('#546E7A'),
+                                    fontSize=3.75, textColor=colors.HexColor('#546E7A'),
                                     alignment=TA_LEFT, spaceAfter=0)
                         s_sec   = ParagraphStyle('DVASec', parent=styles['Normal'],
                                     fontSize=8.5, fontName='Helvetica-Bold',
