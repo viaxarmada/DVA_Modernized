@@ -724,14 +724,23 @@ def create_3d_snapshot(length, width, height, product_volume_pct,
     ax.view_init(elev=22, azim=-55)
     ax.set_box_aspect([length, width, height])
 
-    # Dimension labels
+    # Dimension callouts with lines
     tc = '#b0b8c4'
-    ax.text(0, -w*1.45, -h,  f'L {length:.0f} {dimension_unit}',
-            color=tc, fontsize=7, ha='center', va='top')
-    ax.text(l*1.45, 0, -h,  f'W {width:.0f} {dimension_unit}',
-            color=tc, fontsize=7, ha='left',   va='center')
-    ax.text(-l*1.35, w*1.2, 0, f'H {height:.0f} {dimension_unit}',
-            color=tc, fontsize=7, ha='right',  va='center')
+    
+    # Length callout
+    ax.plot([0, 0], [-w, -w*1.2], [-h, -h*1.15], color=tc, lw=1.5, zorder=2)
+    ax.text(0, -w*1.2, -h*1.15, f'L {length:.0f} {dimension_unit}',
+            color=tc, fontsize=8, ha='center', va='top', weight='bold')
+    
+    # Width callout
+    ax.plot([l, l*1.2], [0, 0], [-h, -h*1.1], color=tc, lw=1.5, zorder=2)
+    ax.text(l*1.2, 0, -h*1.1, f'W {width:.0f} {dimension_unit}',
+            color=tc, fontsize=8, ha='left', va='center', weight='bold')
+    
+    # Height callout
+    ax.plot([-l, -l*1.2], [w, w*1.15], [0, 0], color=tc, lw=1.5, zorder=2)
+    ax.text(-l*1.2, w*1.15, 0, f'H {height:.0f} {dimension_unit}',
+            color=tc, fontsize=8, ha='right', va='center', weight='bold')
 
     plt.tight_layout(pad=0)
 
@@ -1000,31 +1009,57 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         grid_line(-l, gy, -h, -l, gy,  h)   # column (along z)
         grid_line(-l, -w, gz, -l,  w, gz)   # row (along y)
 
-    # === DIMENSION LABELS ════════════════════════════════════════════════════
-    # Add box dimension text annotations
-    dim_col = '#b0b8c4'  # light grey for dimension labels
+    # === DIMENSION CALLOUTS (lines pointing away from box ~20%) ══════════════
+    dim_col = '#b0b8c4'  # light grey for dimension labels and lines
     
-    # Length annotation (bottom center front)
+    # Length callout: bottom front edge, extend down/forward 20%
+    len_start_x, len_start_y, len_start_z = 0, -w, -h
+    len_end_x, len_end_y, len_end_z = 0, -w * 1.2, -h * 1.15
     fig.add_trace(go.Scatter3d(
-        x=[0], y=[-w * 1.4], z=[-h],
+        x=[len_start_x, len_end_x],
+        y=[len_start_y, len_end_y],
+        z=[len_start_z, len_end_z],
+        mode='lines',
+        line=dict(color=dim_col, width=2),
+        showlegend=False, hoverinfo='skip'))
+    fig.add_trace(go.Scatter3d(
+        x=[len_end_x], y=[len_end_y], z=[len_end_z],
         mode='text',
         text=[f'L: {length:.1f} {dimension_unit}'],
         textfont=dict(size=11, color=dim_col, family='Arial Black'),
         textposition='bottom center',
         showlegend=False, hoverinfo='skip'))
     
-    # Width annotation (right center)
+    # Width callout: right center edge, extend right 20%
+    wid_start_x, wid_start_y, wid_start_z = l, 0, -h
+    wid_end_x, wid_end_y, wid_end_z = l * 1.2, 0, -h * 1.1
     fig.add_trace(go.Scatter3d(
-        x=[l * 1.4], y=[0], z=[-h],
+        x=[wid_start_x, wid_end_x],
+        y=[wid_start_y, wid_end_y],
+        z=[wid_start_z, wid_end_z],
+        mode='lines',
+        line=dict(color=dim_col, width=2),
+        showlegend=False, hoverinfo='skip'))
+    fig.add_trace(go.Scatter3d(
+        x=[wid_end_x], y=[wid_end_y], z=[wid_end_z],
         mode='text',
         text=[f'W: {width:.1f} {dimension_unit}'],
         textfont=dict(size=11, color=dim_col, family='Arial Black'),
         textposition='middle right',
         showlegend=False, hoverinfo='skip'))
     
-    # Height annotation (left back center)
+    # Height callout: left back edge, extend left/back 20%
+    hgt_start_x, hgt_start_y, hgt_start_z = -l, w, 0
+    hgt_end_x, hgt_end_y, hgt_end_z = -l * 1.2, w * 1.15, 0
     fig.add_trace(go.Scatter3d(
-        x=[-l * 1.4], y=[w], z=[0],
+        x=[hgt_start_x, hgt_end_x],
+        y=[hgt_start_y, hgt_end_y],
+        z=[hgt_start_z, hgt_end_z],
+        mode='lines',
+        line=dict(color=dim_col, width=2),
+        showlegend=False, hoverinfo='skip'))
+    fig.add_trace(go.Scatter3d(
+        x=[hgt_end_x], y=[hgt_end_y], z=[hgt_end_z],
         mode='text',
         text=[f'H: {height:.1f} {dimension_unit}'],
         textfont=dict(size=11, color=dim_col, family='Arial Black'),
@@ -1981,12 +2016,12 @@ with tab1:
             weight_unit = st.session_state.pref_weight_unit
             
             weight = st.number_input(
-                f"Weight of Water ({weight_unit})",
+                f"Volume Weight of Water ({weight_unit})",
                 min_value=0.0,
                 value=st.session_state.get('product_weight', 0.0),
                 step=0.1,
                 format="%.2f",
-                help=f"Enter weight in {weight_unit}",
+                help=f"Enter the volume weight of water in {weight_unit}",
                 key="product_weight"
             )
             st.info(f"ℹ️ Using **{weight_unit}** (set in Unit Preferences)")
@@ -2914,12 +2949,12 @@ with tab2:
 
                         # ── Styles ───────────────────────────────────────────────────────
                         s_title = ParagraphStyle('DVATitle', parent=styles['Normal'],
-                                    fontSize=14, fontName='Helvetica-Bold',
+                                    fontSize=18, fontName='Helvetica-Bold',
                                     textColor=colors.HexColor('#1565C0'),
-                                    alignment=TA_CENTER, spaceAfter=1)
+                                    alignment=TA_LEFT, spaceAfter=1)
                         s_sub   = ParagraphStyle('DVASub', parent=styles['Normal'],
                                     fontSize=7.5, textColor=colors.HexColor('#546E7A'),
-                                    alignment=TA_CENTER, spaceAfter=0)
+                                    alignment=TA_LEFT, spaceAfter=0)
                         s_sec   = ParagraphStyle('DVASec', parent=styles['Normal'],
                                     fontSize=8.5, fontName='Helvetica-Bold',
                                     textColor=colors.white, spaceAfter=0, spaceBefore=0)
@@ -3071,7 +3106,7 @@ with tab2:
                             left_items.append(sec_hdr('PRIMARY PRODUCT VOLUME','#2E7D32'))
                             left_items.append(micro())
                             left_items.append(kv_table([
-                                ['Weight:',       f"{project.get('weight',0)} {w_unit}"],
+                                ['Volume Weight of Water:', f"{project.get('weight',0)} {w_unit}"],
                                 ['Unit Volume:',  f"{fmv(unit_vol_mm3, vol_unit)} {vol_unit}"],
                                 ['Quantity:',     str(qty)],
                                 ['Total Volume:', f"{fmv(total_vol_mm3,vol_unit)} {vol_unit}"],
@@ -3241,9 +3276,10 @@ with tab2:
                         total_vol_disp = total_vol_mm3 * factor
 
                         # ── Primary Product (from saved Primary Calculator data) ──────
+                        weight_val = project.get('weight', 0)
                         st.success(f"""
                         **Primary Product**  
-                        Weight: {project.get('weight', 0)} {disp_w_unit}  
+                        Volume Weight of Water: {weight_val:,.2f} {disp_w_unit}  
                         Unit Volume: {unit_vol_disp:,.4f} {disp_vol_unit}  
                         Quantity: {qty}  
                         Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
