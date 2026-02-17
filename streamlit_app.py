@@ -1000,6 +1000,37 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         grid_line(-l, gy, -h, -l, gy,  h)   # column (along z)
         grid_line(-l, -w, gz, -l,  w, gz)   # row (along y)
 
+    # === DIMENSION LABELS ════════════════════════════════════════════════════
+    # Add box dimension text annotations
+    dim_col = '#b0b8c4'  # light grey for dimension labels
+    
+    # Length annotation (bottom center front)
+    fig.add_trace(go.Scatter3d(
+        x=[0], y=[-w * 1.4], z=[-h],
+        mode='text',
+        text=[f'L: {length:.1f} {dimension_unit}'],
+        textfont=dict(size=11, color=dim_col, family='Arial Black'),
+        textposition='bottom center',
+        showlegend=False, hoverinfo='skip'))
+    
+    # Width annotation (right center)
+    fig.add_trace(go.Scatter3d(
+        x=[l * 1.4], y=[0], z=[-h],
+        mode='text',
+        text=[f'W: {width:.1f} {dimension_unit}'],
+        textfont=dict(size=11, color=dim_col, family='Arial Black'),
+        textposition='middle right',
+        showlegend=False, hoverinfo='skip'))
+    
+    # Height annotation (left back center)
+    fig.add_trace(go.Scatter3d(
+        x=[-l * 1.4], y=[w], z=[0],
+        mode='text',
+        text=[f'H: {height:.1f} {dimension_unit}'],
+        textfont=dict(size=11, color=dim_col, family='Arial Black'),
+        textposition='middle left',
+        showlegend=False, hoverinfo='skip'))
+
     # === NUMERIC SCALE LABELS (on grid edges) ═══════════════════════════════
     label_col  = '#9ca3af'  # light grey matching grid
     label_size = 9
@@ -3333,7 +3364,19 @@ with tab2:
             st.info("📋 No projects in overview. Click 'Add Selected to Overview' to analyze projects.")
     
     else:
-        st.info("📋 No projects saved yet. Create a project in the Calculator tab!")
+        st.info("📭 No projects saved yet.")
+        st.markdown("""
+        ### 🚀 How to Create and Save Projects:
+        
+        1. **Go to the Volume Analyzer tab** (first tab)
+        2. **Enter your data** in the Primary Calculator section
+        3. **Click "💾 Save Primary Data"**
+        4. **Enter box dimensions** in Secondary Packaging section
+        5. **Calculate volume** and click "💾 Save Secondary Packaging"
+        6. **Save the project** by clicking "💾 Save" in the Project Information section
+        
+        Your saved projects will appear here automatically!
+        """)
 
 # TAB 3: Primary Results
 with tab3:
