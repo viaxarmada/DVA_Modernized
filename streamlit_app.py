@@ -1000,6 +1000,43 @@ def create_3d_volume_preview(length, width, height, product_volume_pct, dimensio
         grid_line(-l, gy, -h, -l, gy,  h)   # column (along z)
         grid_line(-l, -w, gz, -l,  w, gz)   # row (along y)
 
+    # === NUMERIC SCALE LABELS (on grid edges) ═══════════════════════════════
+    label_col  = '#9ca3af'  # light grey matching grid
+    label_size = 9
+
+    # Length scale (bottom face, front edge y=-w)
+    for i in range(num_ticks + 1):
+        gx  = -l + 2*l * i / num_ticks
+        val = int(round(i * length / num_ticks))
+        fig.add_trace(go.Scatter3d(
+            x=[gx], y=[-w * 1.25], z=[-h],
+            mode='text', text=[str(val)],
+            textfont=dict(size=label_size, color=label_col),
+            textposition='bottom center',
+            showlegend=False, hoverinfo='skip'))
+
+    # Width scale (bottom face, right edge x=l)
+    for i in range(num_ticks + 1):
+        gy  = -w + 2*w * i / num_ticks
+        val = int(round(i * width / num_ticks))
+        fig.add_trace(go.Scatter3d(
+            x=[l * 1.25], y=[gy], z=[-h],
+            mode='text', text=[str(val)],
+            textfont=dict(size=label_size, color=label_col),
+            textposition='middle right',
+            showlegend=False, hoverinfo='skip'))
+
+    # Height scale (left face, back edge x=-l, y=w)
+    for i in range(num_ticks + 1):
+        gz  = -h + 2*h * i / num_ticks
+        val = int(round(i * height / num_ticks))
+        fig.add_trace(go.Scatter3d(
+            x=[-l * 1.25], y=[w], z=[gz],
+            mode='text', text=[str(val)],
+            textfont=dict(size=label_size, color=label_col),
+            textposition='middle left',
+            showlegend=False, hoverinfo='skip'))
+
     fig.update_layout(
         scene=dict(
             xaxis=dict(visible=False, showgrid=False, zeroline=False, showticklabels=False),
@@ -2046,7 +2083,7 @@ with tab1:
             # Save Primary Data Button
             st.markdown("")  # Small spacing
             if st.button("💾 Save Primary Data", use_container_width=True, type="secondary", key="save_primary_data"):
-                # Save all primary calculator data to session state persistence
+                # Save to session state for immediate recall
                 st.session_state.saved_primary_data = {
                     'product_weight': st.session_state.get('product_weight', 0.0),
                     'product_quantity': st.session_state.get('product_quantity', 1),
@@ -2055,7 +2092,11 @@ with tab1:
                     'pref_weight_unit': st.session_state.pref_weight_unit,
                     'pref_volume_unit': st.session_state.pref_volume_unit
                 }
-                st.success("✅ Primary data saved!")
+                # Also persist to project record so it shows in Project Overview
+                if save_current_project():
+                    st.success("✅ Primary data saved to project!")
+                else:
+                    st.success("✅ Primary data saved!")
                 time.sleep(0.5)
                 st.rerun()
         
@@ -2520,27 +2561,27 @@ with tab1:
                                 margin-bottom: 20px;
                                 position: relative;
                                 z-index: 1;'>
-                        <div style='font-size: 11px; font-weight: bold; color: #3b82f6; margin-top: 0; margin-bottom: 4px;'>📦 SECONDARY PACKAGING</div>
-                        <p style='font-size: 13px; font-weight: bold; color: #3b82f6; margin: 4px 0;'>
+                        <div style='font-size: 17px; font-weight: bold; color: #3b82f6; margin-top: 0; margin-bottom: 6px;'>📦 SECONDARY PACKAGING</div>
+                        <p style='font-size: 20px; font-weight: bold; color: #3b82f6; margin: 6px 0;'>
                             {box_volume:.2f} {st.session_state.pref_dimension_unit}³
                         </p>
-                        <p style='font-size: 10px; color: #94a3b8; margin: 4px 0;'>
+                        <p style='font-size: 15px; color: #94a3b8; margin: 6px 0;'>
                             {st.session_state['box_length']:.1f} × {st.session_state['box_width']:.1f} × {st.session_state['box_height']:.1f} {st.session_state.pref_dimension_unit}
                         </p>
                         <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 10px 0;'>
-                        <div style='font-size: 11px; font-weight: bold; color: #10b981; margin-top: 0; margin-bottom: 4px;'>🎁 PRIMARY PRODUCT</div>
-                        <p style='font-size: 13px; font-weight: bold; color: #10b981; margin: 4px 0;'>
+                        <div style='font-size: 17px; font-weight: bold; color: #10b981; margin-top: 0; margin-bottom: 6px;'>🎁 PRIMARY PRODUCT</div>
+                        <p style='font-size: 20px; font-weight: bold; color: #10b981; margin: 6px 0;'>
                             {product_vol_display:.2f} {st.session_state.pref_dimension_unit}³
                         </p>
-                        <p style='font-size: 10px; color: #94a3b8; margin: 4px 0;'>
+                        <p style='font-size: 15px; color: #94a3b8; margin: 6px 0;'>
                             Quantity: {st.session_state.get('product_quantity', 1)} units
                         </p>
                         <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 10px 0;'>
-                        <div style='font-size: 11px; font-weight: bold; color: white; margin-top: 0; margin-bottom: 4px;'>📊 EFFICIENCY</div>
-                        <p style='font-size: 20px; font-weight: bold; color: white; margin: 4px 0;'>
+                        <div style='font-size: 17px; font-weight: bold; color: white; margin-top: 0; margin-bottom: 6px;'>📊 EFFICIENCY</div>
+                        <p style='font-size: 30px; font-weight: bold; color: white; margin: 6px 0;'>
                             {volume_efficiency_percentage:.1f}%
                         </p>
-                        <p style='font-size: 10px; color: #94a3b8; margin: 4px 0;'>
+                        <p style='font-size: 15px; color: #94a3b8; margin: 6px 0;'>
                             Volume Utilization
                         </p>
                     </div>
