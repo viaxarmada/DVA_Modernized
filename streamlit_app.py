@@ -2765,15 +2765,36 @@ with tab1:
 with tab2:
     st.markdown("## Project Results")
     
-    # Load Project button at top
-    col_button1, col_button2 = st.columns([3, 1])
+    # Refresh and Delete buttons at top
+    col_button1, col_button2, col_button3 = st.columns([2, 1, 1])
     
     with col_button2:
+        if st.button("🔄 Refresh", use_container_width=True, help="Reload projects from file"):
+            # Force reload from dva_projects.json
+            if os.path.exists('dva_projects.json'):
+                try:
+                    with open('dva_projects.json', 'r') as f:
+                        content_json = f.read().strip()
+                        if content_json:
+                            st.session_state.projects = json.loads(content_json)
+                            st.success(f"✅ Loaded {len(st.session_state.projects)} project(s)")
+                        else:
+                            st.session_state.projects = []
+                            st.info("📭 No projects in file")
+                except Exception as e:
+                    st.error(f"❌ Error loading projects: {e}")
+            else:
+                st.session_state.projects = []
+                st.info("📭 No projects file found")
+            time.sleep(0.5)
+            st.rerun()
+    
+    with col_button3:
         delete_btn = st.button("🗑️ Delete Selected", use_container_width=True)
     
     if st.session_state.projects:
         st.markdown("---")
-        st.markdown("### Project Summary Table")
+        st.markdown(f"### Project Summary Table ({len(st.session_state.projects)} project{'s' if len(st.session_state.projects) != 1 else ''})")
         
         # Add CSS for larger font (20% increase)
         st.markdown("""
@@ -3130,20 +3151,49 @@ with tab2:
                                 ], '#FFF3E0'))
                                 left_items.append(tiny())
 
-                            # 3D snapshot image (if available)
-                            snap = project.get('snapshot_path') or st.session_state.get('snapshot_path')
+                            # 3D VOLUME PREVIEW - Add 3D snapshot for this project
+                            # First, try to get the snapshot path from the project record
+                            snap = project.get('snapshot_path')
+                            # If not in project, try current session state
+                            if not snap:
+                                snap = st.session_state.get('snapshot_path')
+                            
+                            # Add the 3D graphic if snapshot exists
                             if snap and os.path.exists(snap):
                                 from reportlab.platypus import Image as RLImage
                                 try:
-                                    img_w = PW * 0.62
-                                    img_h = img_w * (5/7)
+                                    img_w = PW * 0.62  # 62% of page width
+                                    img_h = img_w * (5/7)  # Maintain 7:5 aspect ratio
                                     left_items.append(micro())
                                     left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
                                     left_items.append(micro())
                                     left_items.append(RLImage(snap, width=img_w, height=img_h))
                                     left_items.append(tiny())
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    # If image fails to load, add a note instead
+                                    left_items.append(micro())
+                                    left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
+                                    left_items.append(micro())
+                                    left_items.append(Paragraph(
+                                        f'<i>3D preview image not available (Error: {str(e)[:50]})</i>',
+                                        ParagraphStyle('Note', parent=styles['Normal'],
+                                            fontSize=8, textColor=colors.HexColor('#666666'),
+                                            alignment=TA_CENTER)
+                                    ))
+                                    left_items.append(tiny())
+                            else:
+                                # Add note that 3D preview is not available for this project
+                                if box_vol_mm3 > 0:  # Only show note if project has box data
+                                    left_items.append(micro())
+                                    left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
+                                    left_items.append(micro())
+                                    left_items.append(Paragraph(
+                                        '<i>3D preview not saved for this project. Click "Save Analysis Data" in Volume Analysis to generate.</i>',
+                                        ParagraphStyle('Note', parent=styles['Normal'],
+                                            fontSize=8, textColor=colors.HexColor('#666666'),
+                                            alignment=TA_CENTER)
+                                    ))
+                                    left_items.append(tiny())
 
                             # Append all sections directly
                             for item in left_items:
@@ -3400,7 +3450,18 @@ with tab2:
             st.info("📋 No projects in overview. Click 'Add Selected to Overview' to analyze projects.")
     
     else:
-        st.info("📭 No projects saved yet.")
+        st.info("📭 No projects loaded.")
+        
+        # Check if file exists and has content
+        import os
+        if os.path.exists('dva_projects.json'):
+            with open('dva_projects.json', 'r') as f:
+                file_content = f.read().strip()
+                if file_content:
+                    st.warning("⚠️ Projects exist in file but aren't loaded. Click the **🔄 Refresh** button above to load them.")
+                else:
+                    st.caption("The dva_projects.json file exists but is empty.")
+        
         st.markdown("""
         ### 🚀 How to Create and Save Projects:
         
@@ -3410,8 +3471,9 @@ with tab2:
         4. **Enter box dimensions** in Secondary Packaging section
         5. **Calculate volume** and click "💾 Save Secondary Packaging"
         6. **Save the project** by clicking "💾 Save" in the Project Information section
+        7. **Come back here and click "🔄 Refresh"** to see your saved projects
         
-        Your saved projects will appear here automatically!
+        Your saved projects will appear here after refreshing!
         """)
 
 # TAB 3: Primary Results
