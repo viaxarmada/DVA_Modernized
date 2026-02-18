@@ -1550,7 +1550,10 @@ st.markdown("---")
 # Initialize session state for projects
 if 'projects' not in st.session_state:
     st.session_state.projects = []
-    
+    st.session_state.projects_loaded = False
+
+# Auto-reload projects from file if not yet loaded or explicitly requested
+if not st.session_state.get('projects_loaded', False):
     # Ensure JSON file is valid before trying to load
     ensure_valid_json_file('dva_projects.json', [])
     
@@ -1558,20 +1561,26 @@ if 'projects' not in st.session_state:
     if os.path.exists('dva_projects.json'):
         try:
             with open('dva_projects.json', 'r') as f:
-                content = f.read().strip()
-                if content:  # Check if file is not empty
-                    st.session_state.projects = json.loads(content)
+                content_data = f.read().strip()
+                if content_data:  # Check if file is not empty
+                    st.session_state.projects = json.loads(content_data)
+                    st.session_state.projects_loaded = True
                 else:
                     st.session_state.projects = []
+                    st.session_state.projects_loaded = True
         except (json.JSONDecodeError, ValueError) as e:
             # If JSON is corrupted, start with empty list and backup bad file
             st.session_state.projects = []
+            st.session_state.projects_loaded = True
             # Optionally backup the corrupted file
             if os.path.exists('dva_projects.json'):
                 try:
                     os.rename('dva_projects.json', 'dva_projects.json.backup')
                 except:
                     pass
+    else:
+        # File doesn't exist, mark as loaded
+        st.session_state.projects_loaded = True
 
 if 'current_project_id' not in st.session_state:
     st.session_state.current_project_id = None
@@ -2765,28 +2774,44 @@ with tab1:
 with tab2:
     st.markdown("## Project Results")
     
+    # Force reload projects from file when this tab is accessed
+    # This ensures we always have the latest data
+    if os.path.exists('dva_projects.json'):
+        try:
+            with open('dva_projects.json', 'r') as f:
+                file_content = f.read().strip()
+                if file_content:
+                    loaded_projects = json.loads(file_content)
+                    # Only update if different from current state
+                    if loaded_projects != st.session_state.get('projects', []):
+                        st.session_state.projects = loaded_projects
+                else:
+                    if st.session_state.get('projects'):
+                        st.session_state.projects = []
+        except Exception as e:
+            st.error(f"Error loading projects: {e}")
+    
     # Refresh and Delete buttons at top
     col_button1, col_button2, col_button3 = st.columns([2, 1, 1])
     
     with col_button2:
         if st.button("🔄 Refresh", use_container_width=True, help="Reload projects from file"):
-            # Force reload from dva_projects.json
+            # Force reload from file
             if os.path.exists('dva_projects.json'):
                 try:
                     with open('dva_projects.json', 'r') as f:
-                        content_json = f.read().strip()
-                        if content_json:
-                            st.session_state.projects = json.loads(content_json)
-                            st.success(f"✅ Loaded {len(st.session_state.projects)} project(s)")
+                        file_content = f.read().strip()
+                        if file_content:
+                            st.session_state.projects = json.loads(file_content)
+                            st.success(f"✅ Reloaded {len(st.session_state.projects)} project(s)")
                         else:
                             st.session_state.projects = []
-                            st.info("📭 No projects in file")
+                            st.info("📭 File is empty")
                 except Exception as e:
-                    st.error(f"❌ Error loading projects: {e}")
+                    st.error(f"❌ Error: {e}")
             else:
                 st.session_state.projects = []
                 st.info("📭 No projects file found")
-            time.sleep(0.5)
             st.rerun()
     
     with col_button3:
