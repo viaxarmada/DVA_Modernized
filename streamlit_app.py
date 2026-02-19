@@ -8,6 +8,18 @@ import plotly.graph_objects as go
 import plotly.express as px
 import numpy as np
 
+# Matplotlib for 3D snapshot generation
+try:
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend for server-side rendering
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    st.warning("⚠️ Matplotlib not installed. 3D snapshot generation will be disabled. Install with: pip install matplotlib")
+
 # Page configuration
 st.set_page_config(
     page_title="Displacement Volume Analyzer",
@@ -668,11 +680,8 @@ def create_3d_snapshot(length, width, height, product_volume_pct,
     Render a static PNG of the 3D volume preview using matplotlib.
     Saves to dva_projects/project_{N}/3d_preview.png and returns the path.
     """
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D          # noqa: F401
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+    if not MATPLOTLIB_AVAILABLE:
+        raise ImportError("Matplotlib is not installed. Cannot generate 3D snapshot.")
 
     fig_m = plt.figure(figsize=(7, 5), facecolor='#0f172a')
     ax    = fig_m.add_subplot(111, projection='3d')
@@ -2951,11 +2960,13 @@ with tab2:
         # Project Overview Section
         st.markdown("---")
         
-        # Header with Output Report button
-        col_header, col_button = st.columns([3, 1])
+        # Header
+        st.markdown("## Project Overview")
         
-        with col_header:
-            st.markdown("## Project Overview")
+        # Detailed Project Information with Output Report button (right-aligned)
+        col_detail, col_button = st.columns([3, 1])
+        
+        with col_detail:
             st.markdown("### Detailed Project Information")
         
         with col_button:
