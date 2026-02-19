@@ -18,7 +18,8 @@ try:
     MATPLOTLIB_AVAILABLE = True
 except ImportError:
     MATPLOTLIB_AVAILABLE = False
-    st.warning("⚠️ Matplotlib not installed. 3D snapshot generation will be disabled. Install with: pip install matplotlib")
+    # Don't show warning at module level - Streamlit context not ready yet
+    # Warning will be shown when user tries to generate snapshot
 
 # Page configuration
 st.set_page_config(
@@ -2702,18 +2703,24 @@ with tab1:
 
                 # Render and save 3D snapshot PNG
                 snapshot_path = None
-                try:
-                    snapshot_path = create_3d_snapshot(
-                        st.session_state['box_length'],
-                        st.session_state['box_width'],
-                        st.session_state['box_height'],
-                        volume_efficiency_percentage,
-                        st.session_state.pref_dimension_unit,
-                        project_number=pid
-                    )
-                    st.session_state.snapshot_path = snapshot_path
-                except Exception as snap_err:
-                    st.warning(f"⚠️ 3D snapshot failed: {snap_err}")
+                
+                # Check if matplotlib is available before trying to generate snapshot
+                if not MATPLOTLIB_AVAILABLE:
+                    st.warning("⚠️ 3D snapshot generation is disabled: Matplotlib not installed.")
+                    st.info("💡 To enable 3D snapshots, install matplotlib: `pip install matplotlib`")
+                else:
+                    try:
+                        snapshot_path = create_3d_snapshot(
+                            st.session_state['box_length'],
+                            st.session_state['box_width'],
+                            st.session_state['box_height'],
+                            volume_efficiency_percentage,
+                            st.session_state.pref_dimension_unit,
+                            project_number=pid
+                        )
+                        st.session_state.snapshot_path = snapshot_path
+                    except Exception as snap_err:
+                        st.warning(f"⚠️ 3D snapshot failed: {snap_err}")
 
                 # Build analysis data dict (includes snapshot path)
                 analysis_data = {
