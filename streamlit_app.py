@@ -2964,6 +2964,182 @@ with tab2:
             else:
                 st.warning("⚠️ Please select at least one project to delete")
         
+        # ═══════════════════════════════════════════════════════════
+        # Remaining Volume Comparison (Visual Analysis)
+        # ═══════════════════════════════════════════════════════════
+        if len(st.session_state.projects) > 0:
+            # Filter projects with box data
+            projects_with_boxes = [p for p in st.session_state.projects if p.get('box_volume_mm3', 0) > 0]
+            
+            if len(projects_with_boxes) > 0:
+                st.markdown("---")
+                st.markdown("### 📊 Project Comparison: Remaining Volume Analysis")
+                st.caption("Visual comparison of space utilization across all projects")
+                
+                # Prepare data for comparison
+                project_names = []
+                remaining_volumes = []
+                efficiency_percentages = []
+                
+                for proj in projects_with_boxes:
+                    # Get conversion factor
+                    vol_unit = proj.get('box_result_unit', 'cubic inches')
+                    mm3_to_unit = {
+                        'cubic mm': 1, 'cubic cm': 0.001,
+                        'cubic inches': 0.000061023744, 'cubic feet': 0.000000035315
+                    }
+                    factor = mm3_to_unit.get(vol_unit, 0.001)
+                    
+                    # Calculate values
+                    box_vol_mm3 = proj.get('box_volume_mm3', 0)
+                    total_vol_mm3 = proj.get('total_product_volume_mm3', proj.get('primary_volume_mm3', 0))
+                    remaining_mm3 = box_vol_mm3 - total_vol_mm3
+                    remaining_display = remaining_mm3 * factor
+                    efficiency = (total_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
+                    
+                    project_names.append(f"#{proj['project_number']} - {proj['project_name'][:30]}")
+                    remaining_volumes.append(remaining_display)
+                    efficiency_percentages.append(efficiency)
+                
+                # Create comparison visualization
+                if len(projects_with_boxes) > 1:
+                    # Multi-project comparison chart
+                    import plotly.graph_objects as go
+                    
+                    fig = go.Figure()
+                    
+                    # Add remaining volume bars
+                    fig.add_trace(go.Bar(
+                        name='Remaining Volume',
+                        x=project_names,
+                        y=remaining_volumes,
+                        marker=dict(
+                            color=remaining_volumes,
+                            colorscale='RdYlGn_r',  # Red (bad) to Green (good)
+                            showscale=True,
+                            colorbar=dict(title="Volume")
+                        ),
+                        text=[f"{v:.2f}" for v in remaining_volumes],
+                        textposition='outside',
+                        hovertemplate='<b>%{x}</b><br>Remaining: %{y:.2f} ' + vol_unit + '<extra></extra>'
+                    ))
+                    
+                    fig.update_layout(
+                        title=dict(
+                            text=f'Remaining Volume Comparison ({vol_unit})',
+                            font=dict(size=18, color='white')
+                        ),
+                        xaxis=dict(
+                            title='Projects',
+                            tickangle=-45,
+                            color='white'
+                        ),
+                        yaxis=dict(
+                            title=f'Remaining Volume ({vol_unit})',
+                            color='white'
+                        ),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        showlegend=False,
+                        height=400,
+                        margin=dict(b=120)
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Add efficiency comparison
+                    st.markdown("#### Volume Efficiency Comparison")
+                    
+                    fig_eff = go.Figure()
+                    
+                    colors = ['#ef4444' if e < 50 else '#f59e0b' if e < 75 else '#10b981' for e in efficiency_percentages]
+                    
+                    fig_eff.add_trace(go.Bar(
+                        x=project_names,
+                        y=efficiency_percentages,
+                        marker=dict(color=colors),
+                        text=[f"{e:.1f}%" for e in efficiency_percentages],
+                        textposition='outside',
+                        hovertemplate='<b>%{x}</b><br>Efficiency: %{y:.1f}%<extra></extra>'
+                    ))
+                    
+                    fig_eff.update_layout(
+                        title=dict(
+                            text='Volume Efficiency by Project',
+                            font=dict(size=18, color='white')
+                        ),
+                        xaxis=dict(
+                            title='Projects',
+                            tickangle=-45,
+                            color='white'
+                        ),
+                        yaxis=dict(
+                            title='Efficiency (%)',
+                            range=[0, 100],
+                            color='white'
+                        ),
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='white'),
+                        showlegend=False,
+                        height=400,
+                        margin=dict(b=120)
+                    )
+                    
+                    # Add reference lines
+                    fig_eff.add_hline(y=50, line_dash="dash", line_color="red", opacity=0.5,
+                                     annotation_text="50% (Poor)", annotation_position="right")
+                    fig_eff.add_hline(y=75, line_dash="dash", line_color="orange", opacity=0.5,
+                                     annotation_text="75% (Fair)", annotation_position="right")
+                    
+                    st.plotly_chart(fig_eff, use_container_width=True)
+                    
+                    # Summary statistics
+                    col_stats1, col_stats2, col_stats3 = st.columns(3)
+                    
+                    with col_stats1:
+                        avg_remaining = sum(remaining_volumes) / len(remaining_volumes)
+                        st.metric(
+                            "Average Remaining Volume",
+                            f"{avg_remaining:.2f} {vol_unit}",
+                            delta=None
+                        )
+                    
+                    with col_stats2:
+                        avg_efficiency = sum(efficiency_percentages) / len(efficiency_percentages)
+                        st.metric(
+                            "Average Efficiency",
+                            f"{avg_efficiency:.1f}%",
+                            delta=None
+                        )
+                    
+                    with col_stats3:
+                        best_project = projects_with_boxes[efficiency_percentages.index(max(efficiency_percentages))]
+                        st.metric(
+                            "Most Efficient Project",
+                            f"#{best_project['project_number']}",
+                            delta=f"{max(efficiency_percentages):.1f}%"
+                        )
+                else:
+                    # Single project - show simple stats
+                    proj = projects_with_boxes[0]
+                    vol_unit = proj.get('box_result_unit', 'cubic inches')
+                    
+                    col_single1, col_single2 = st.columns(2)
+                    
+                    with col_single1:
+                        st.metric(
+                            "Remaining Volume",
+                            f"{remaining_volumes[0]:.2f} {vol_unit}"
+                        )
+                    
+                    with col_single2:
+                        st.metric(
+                            "Volume Efficiency",
+                            f"{efficiency_percentages[0]:.1f}%"
+                        )
+        
         # Project Overview Section
         st.markdown("---")
         
@@ -3334,11 +3510,14 @@ with tab2:
             
             for idx, project in enumerate(st.session_state.loaded_projects_overview):
                 with st.expander(f"📋 Project {project['project_number']} - {project['project_name']}", expanded=False):
+                    
+                    # ═══════════════════════════════════════════════════════════
+                    # SECTION 1: Project Information & Calculation Results
+                    # ═══════════════════════════════════════════════════════════
                     col1, col2 = st.columns(2)
                     
                     with col1:
                         st.markdown("#### Project Information")
-                        # All fields read directly from the saved project file
                         st.info(f"""
                         **Project Number:** {project.get('project_number', '—')}  
                         **Project Name:** {project.get('project_name', '—')}  
@@ -3368,7 +3547,7 @@ with tab2:
                         unit_vol_disp  = unit_vol_mm3  * factor
                         total_vol_disp = total_vol_mm3 * factor
 
-                        # ── Primary Product (from saved Primary Calculator data) ──────
+                        # Primary Product
                         weight_val = project.get('weight', 0)
                         st.success(f"""
                         **Primary Product**  
@@ -3378,7 +3557,7 @@ with tab2:
                         Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
                         """)
 
-                        # ── Secondary Packaging (from saved Box Dimensions data) ──────
+                        # Secondary Packaging
                         if project.get('box_volume_mm3', 0) > 0:
                             box_vol_disp = project.get('box_volume_mm3', 0) * factor
                             rem_mm3      = project.get('box_volume_mm3', 0) - total_vol_mm3
@@ -3394,6 +3573,97 @@ with tab2:
                             """)
                         else:
                             st.caption("No box dimensions saved for this project.")
+                    
+                    # ═══════════════════════════════════════════════════════════
+                    # SECTION 2: Volume Efficiency Analysis (if box data exists)
+                    # ═══════════════════════════════════════════════════════════
+                    if project.get('box_volume_mm3', 0) > 0:
+                        st.markdown("---")
+                        st.markdown("### 📊 Volume Efficiency Analysis")
+                        
+                        # Calculate efficiency
+                        volume_eff_pct = (total_vol_mm3 / project.get('box_volume_mm3', 1) * 100)
+                        
+                        # Row 1: Gauge and Donut charts
+                        viz_col1, viz_col2 = st.columns(2)
+                        
+                        with viz_col1:
+                            gauge_fig = create_efficiency_gauge(volume_eff_pct)
+                            st.plotly_chart(gauge_fig, use_container_width=True, key=f"gauge_{project['project_number']}_{idx}")
+                        
+                        with viz_col2:
+                            donut_fig = create_donut_chart(volume_eff_pct)
+                            st.plotly_chart(donut_fig, use_container_width=True, key=f"donut_{project['project_number']}_{idx}")
+                        
+                        # ═══════════════════════════════════════════════════════════
+                        # SECTION 3: Volume Breakdown
+                        # ═══════════════════════════════════════════════════════════
+                        st.markdown("### 📦 Volume Breakdown")
+                        
+                        comparison_fig = create_volume_comparison_chart(
+                            box_vol_disp,
+                            total_vol_disp,
+                            disp_vol_unit
+                        )
+                        st.plotly_chart(comparison_fig, use_container_width=True, key=f"breakdown_{project['project_number']}_{idx}")
+                        
+                        # ═══════════════════════════════════════════════════════════
+                        # SECTION 4: 3D Volume Preview
+                        # ═══════════════════════════════════════════════════════════
+                        if all(k in project for k in ['box_length', 'box_width', 'box_height']):
+                            st.markdown("### 📊 3D Volume Preview")
+                            
+                            # Create two columns: info panel and 3D graphic
+                            info_col, graphic_col = st.columns([1.3, 2.7], gap="large")
+                            
+                            with info_col:
+                                # Calculate box volume in display units
+                                box_dims_vol = project['box_length'] * project['box_width'] * project['box_height']
+                                
+                                # Info panel
+                                st.markdown(f"""
+                                <div style='background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%); 
+                                            border-left: 4px solid #3b82f6; 
+                                            padding: 14px; 
+                                            border-radius: 10px;
+                                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                                            margin-bottom: 20px;'>
+                                    <div style='font-size: 17px; font-weight: bold; color: #3b82f6; margin-bottom: 6px;'>📦 SECONDARY PACKAGING</div>
+                                    <p style='font-size: 20px; font-weight: bold; color: #3b82f6; margin: 6px 0;'>
+                                        {box_dims_vol:.2f} {disp_dim_unit}³
+                                    </p>
+                                    <p style='font-size: 15px; color: #94a3b8; margin: 6px 0;'>
+                                        {project['box_length']:.1f} × {project['box_width']:.1f} × {project['box_height']:.1f} {disp_dim_unit}
+                                    </p>
+                                    <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 10px 0;'>
+                                    <div style='font-size: 17px; font-weight: bold; color: #10b981; margin-bottom: 6px;'>🎁 PRIMARY PRODUCT</div>
+                                    <p style='font-size: 20px; font-weight: bold; color: #10b981; margin: 6px 0;'>
+                                        {total_vol_disp:.2f} {disp_vol_unit}
+                                    </p>
+                                    <p style='font-size: 15px; color: #94a3b8; margin: 6px 0;'>
+                                        Quantity: {qty} units
+                                    </p>
+                                    <hr style='border: none; border-top: 1px solid rgba(148, 163, 184, 0.3); margin: 10px 0;'>
+                                    <div style='font-size: 17px; font-weight: bold; color: white; margin-bottom: 6px;'>📊 EFFICIENCY</div>
+                                    <p style='font-size: 30px; font-weight: bold; color: white; margin: 6px 0;'>
+                                        {volume_eff_pct:.1f}%
+                                    </p>
+                                    <p style='font-size: 15px; color: #94a3b8; margin: 6px 0;'>
+                                        Volume Utilization
+                                    </p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            
+                            with graphic_col:
+                                # 3D visualization
+                                box_3d_fig = create_3d_volume_preview(
+                                    project['box_length'],
+                                    project['box_width'],
+                                    project['box_height'],
+                                    volume_eff_pct,
+                                    disp_dim_unit
+                                )
+                                st.plotly_chart(box_3d_fig, use_container_width=True, key=f"3d_{project['project_number']}_{idx}")
                     
                     # Remove button for this project
                     if st.button(f"Remove from Overview", key=f"remove_overview_{idx}"):
