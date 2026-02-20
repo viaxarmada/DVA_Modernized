@@ -2702,72 +2702,8 @@ with tab1:
             else:
                 st.success(f"✅ Box has sufficient space with {remaining_volume_result:,.2f} {remaining_unit} remaining")
             
-            # Camera Angle Controls for 3D Snapshot
-            st.markdown("---")
-            st.markdown("### 📸 3D Snapshot Settings")
-            st.caption("Adjust the camera angle for your 3D snapshot. Rotate the 3D graphic above to find your desired view, then set similar angles here.")
-            
-            cam_col1, cam_col2 = st.columns(2)
-            
-            with cam_col1:
-                # Initialize camera angles if not set
-                if 'camera_elevation' not in st.session_state:
-                    st.session_state.camera_elevation = 22
-                
-                camera_elev = st.slider(
-                    "Elevation (vertical angle)",
-                    min_value=-90,
-                    max_value=90,
-                    value=st.session_state.camera_elevation,
-                    step=5,
-                    help="Vertical viewing angle: 0° = horizontal, 90° = top view, -90° = bottom view"
-                )
-                st.session_state.camera_elevation = camera_elev
-            
-            with cam_col2:
-                # Initialize camera angles if not set
-                if 'camera_azimuth' not in st.session_state:
-                    st.session_state.camera_azimuth = -55
-                
-                camera_azim = st.slider(
-                    "Azimuth (rotation angle)",
-                    min_value=-180,
-                    max_value=180,
-                    value=st.session_state.camera_azimuth,
-                    step=5,
-                    help="Horizontal rotation angle: 0° = front, 90° = right side, -90° = left side"
-                )
-                st.session_state.camera_azimuth = camera_azim
-            
-            # Quick preset buttons
-            preset_col1, preset_col2, preset_col3, preset_col4 = st.columns(4)
-            
-            with preset_col1:
-                if st.button("Front View", use_container_width=True):
-                    st.session_state.camera_elevation = 20
-                    st.session_state.camera_azimuth = 0
-                    st.rerun()
-            
-            with preset_col2:
-                if st.button("Right Side", use_container_width=True):
-                    st.session_state.camera_elevation = 20
-                    st.session_state.camera_azimuth = 90
-                    st.rerun()
-            
-            with preset_col3:
-                if st.button("Top View", use_container_width=True):
-                    st.session_state.camera_elevation = 90
-                    st.session_state.camera_azimuth = -55
-                    st.rerun()
-            
-            with preset_col4:
-                if st.button("Isometric", use_container_width=True):
-                    st.session_state.camera_elevation = 22
-                    st.session_state.camera_azimuth = -55
-                    st.rerun()
-            
             # Save Analysis Data Button
-            st.markdown("")  # Small spacing
+            st.markdown("---")
             if st.button("💾 Save Analysis Data", use_container_width=True, type="secondary", key="save_analysis_data"):
                 pid = st.session_state.get('current_project_id')
 
@@ -2780,10 +2716,7 @@ with tab1:
                     st.info("💡 To enable 3D snapshots, install matplotlib: `pip install matplotlib`")
                 else:
                     try:
-                        # Get camera angles from session state
-                        elev = st.session_state.get('camera_elevation', 22)
-                        azim = st.session_state.get('camera_azimuth', -55)
-                        
+                        # Use default isometric view (22°, -55°)
                         snapshot_path = create_3d_snapshot(
                             st.session_state['box_length'],
                             st.session_state['box_width'],
@@ -2791,14 +2724,55 @@ with tab1:
                             volume_efficiency_percentage,
                             st.session_state.pref_dimension_unit,
                             project_number=pid,
-                            elev=elev,
-                            azim=azim
+                            elev=22,
+                            azim=-55
                         )
                         st.session_state.snapshot_path = snapshot_path
                         
-                        # Save camera angles to project data
-                        st.session_state.camera_elev_saved = elev
-                        st.session_state.camera_azim_saved = azim
+                        # Also save Volume Efficiency Analysis charts
+                        if pid is not None:
+                            try:
+                                import plotly.io as pio
+                                
+                                # Create project directory if it doesn't exist
+                                project_dir = f"dva_projects/project_{pid}"
+                                os.makedirs(project_dir, exist_ok=True)
+                                
+                                # Get volume data
+                                mm3_to_vol = {
+                                    'cubic mm': 1, 'cubic cm': 0.001,
+                                    'cubic inches': 0.000061023744, 'cubic feet': 0.000000035315
+                                }
+                                vol_unit = st.session_state.pref_volume_unit
+                                factor = mm3_to_vol.get(vol_unit, 0.001)
+                                
+                                box_vol = st.session_state.get('box_volume_mm3', 0) * factor
+                                prod_vol = st.session_state.get('total_product_volume_mm3', 0) * factor
+                                
+                                # Save gauge chart
+                                gauge_fig = create_efficiency_gauge(volume_efficiency_percentage)
+                                gauge_path = os.path.join(project_dir, 'chart_gauge.png')
+                                pio.write_image(gauge_fig, gauge_path, format='png', 
+                                              width=350, height=250, scale=2)
+                                
+                                # Save donut chart
+                                donut_fig = create_donut_chart(volume_efficiency_percentage)
+                                donut_path = os.path.join(project_dir, 'chart_donut.png')
+                                pio.write_image(donut_fig, donut_path, format='png',
+                                              width=350, height=250, scale=2)
+                                
+                                # Save breakdown chart
+                                comparison_fig = create_volume_comparison_chart(box_vol, prod_vol, vol_unit)
+                                breakdown_path = os.path.join(project_dir, 'chart_breakdown.png')
+                                pio.write_image(comparison_fig, breakdown_path, format='png',
+                                              width=700, height=200, scale=2)
+                                
+                                st.success("✅ Volume Efficiency Analysis charts saved!")
+                                
+                            except ImportError:
+                                st.info("💡 Install kaleido to save charts: pip install kaleido")
+                            except Exception as chart_err:
+                                st.warning(f"⚠️ Chart saving failed: {chart_err}")
                         
                     except Exception as snap_err:
                         st.warning(f"⚠️ 3D snapshot failed: {snap_err}")
@@ -3276,77 +3250,46 @@ with tab2:
                                 left_items.append(tiny())
 
                             # ═══════════════════════════════════════════════════════════════
-                            # VOLUME EFFICIENCY ANALYSIS CHARTS (if box data exists)
+                            # VOLUME EFFICIENCY ANALYSIS CHARTS (from saved files)
                             # ═══════════════════════════════════════════════════════════════
                             if box_vol_mm3 > 0:
-                                left_items.append(sec_hdr('VOLUME EFFICIENCY ANALYSIS', '#9C27B0'))
-                                left_items.append(micro())
+                                # Check for saved charts in project folder
+                                pid = project.get('project_number')
+                                project_dir = f"dva_projects/project_{pid}"
                                 
-                                # Generate chart images using plotly
-                                try:
-                                    import plotly.io as pio
-                                    import tempfile
-                                    
-                                    # Create temp directory for chart images
-                                    temp_dir = tempfile.mkdtemp()
-                                    
-                                    # 1. Efficiency Gauge Chart
-                                    gauge_fig = create_efficiency_gauge(eff_pct)
-                                    gauge_path = os.path.join(temp_dir, 'gauge.png')
-                                    pio.write_image(gauge_fig, gauge_path, format='png', 
-                                                  width=350, height=250, scale=2)
-                                    
-                                    # 2. Donut Chart
-                                    donut_fig = create_donut_chart(eff_pct)
-                                    donut_path = os.path.join(temp_dir, 'donut.png')
-                                    pio.write_image(donut_fig, donut_path, format='png',
-                                                  width=350, height=250, scale=2)
-                                    
-                                    # 3. Volume Breakdown Chart
-                                    comparison_fig = create_volume_comparison_chart(
-                                        fmv(box_vol_mm3, vol_unit),
-                                        fmv(total_vol_mm3, vol_unit),
-                                        vol_unit
-                                    )
-                                    breakdown_path = os.path.join(temp_dir, 'breakdown.png')
-                                    pio.write_image(comparison_fig, breakdown_path, format='png',
-                                                  width=700, height=200, scale=2)
-                                    
-                                    # Add charts to PDF in a 2-column layout
-                                    chart_table_data = [[
-                                        RLImage(gauge_path, width=PW*0.30, height=PW*0.30*250/350),
-                                        RLImage(donut_path, width=PW*0.30, height=PW*0.30*250/350)
-                                    ]]
-                                    chart_table = Table(chart_table_data, colWidths=[PW*0.31, PW*0.31])
-                                    chart_table.setStyle(TableStyle([
-                                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-                                    ]))
-                                    left_items.append(chart_table)
+                                gauge_path = os.path.join(project_dir, 'chart_gauge.png')
+                                donut_path = os.path.join(project_dir, 'chart_donut.png')
+                                breakdown_path = os.path.join(project_dir, 'chart_breakdown.png')
+                                
+                                charts_exist = (os.path.exists(gauge_path) and 
+                                              os.path.exists(donut_path) and 
+                                              os.path.exists(breakdown_path))
+                                
+                                if charts_exist:
+                                    left_items.append(sec_hdr('VOLUME EFFICIENCY ANALYSIS', '#9C27B0'))
                                     left_items.append(micro())
                                     
-                                    # Add volume breakdown chart (full width)
-                                    left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
-                                    left_items.append(tiny())
-                                    
-                                except ImportError:
-                                    # If kaleido not installed, add note
-                                    left_items.append(Paragraph(
-                                        '<i>Chart images require kaleido package. Install with: pip install kaleido</i>',
-                                        ParagraphStyle('Note', parent=styles['Normal'],
-                                            fontSize=8, textColor=colors.HexColor('#666666'),
-                                            alignment=TA_CENTER)
-                                    ))
-                                    left_items.append(tiny())
-                                except Exception as chart_err:
-                                    # If chart generation fails, continue without charts
-                                    left_items.append(Paragraph(
-                                        f'<i>Chart generation unavailable: {str(chart_err)[:50]}</i>',
-                                        ParagraphStyle('Note', parent=styles['Normal'],
-                                            fontSize=8, textColor=colors.HexColor('#666666'),
-                                            alignment=TA_CENTER)
-                                    ))
-                                    left_items.append(tiny())
+                                    try:
+                                        # Add charts to PDF in a 2-column layout
+                                        chart_table_data = [[
+                                            RLImage(gauge_path, width=PW*0.30, height=PW*0.30*250/350),
+                                            RLImage(donut_path, width=PW*0.30, height=PW*0.30*250/350)
+                                        ]]
+                                        chart_table = Table(chart_table_data, colWidths=[PW*0.31, PW*0.31])
+                                        chart_table.setStyle(TableStyle([
+                                            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                                            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                                        ]))
+                                        left_items.append(chart_table)
+                                        left_items.append(micro())
+                                        
+                                        # Add volume breakdown chart (full width)
+                                        left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
+                                        left_items.append(tiny())
+                                        
+                                    except Exception as chart_err:
+                                        # If chart loading fails, skip charts
+                                        pass
                             
                             # ═══════════════════════════════════════════════════════════════
                             # 3D VOLUME PREVIEW - Add 3D snapshot for this project
@@ -3397,6 +3340,10 @@ with tab2:
                             # Append all sections directly
                             for item in left_items:
                                 elements.append(item)
+                            
+                            # Add page break after each project (except the last one)
+                            if proj_idx < len(st.session_state.loaded_projects_overview) - 1:
+                                elements.append(PageBreak())
 
                         # ════════════════════════════════════════════════════════════════
                         # Comparison table (multi-project)
