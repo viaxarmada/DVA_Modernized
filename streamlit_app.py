@@ -2729,7 +2729,7 @@ with tab1:
                         )
                         st.session_state.snapshot_path = snapshot_path
                         
-                        # Also save Volume Efficiency Analysis charts
+                        # Also save Volume Efficiency Analysis charts (optional feature)
                         if pid is not None:
                             try:
                                 import plotly.io as pio
@@ -2749,30 +2749,82 @@ with tab1:
                                 box_vol = st.session_state.get('box_volume_mm3', 0) * factor
                                 prod_vol = st.session_state.get('total_product_volume_mm3', 0) * factor
                                 
-                                # Save gauge chart
-                                gauge_fig = create_efficiency_gauge(volume_efficiency_percentage)
-                                gauge_path = os.path.join(project_dir, 'chart_gauge.png')
-                                pio.write_image(gauge_fig, gauge_path, format='png', 
-                                              width=350, height=250, scale=2)
-                                
-                                # Save donut chart
-                                donut_fig = create_donut_chart(volume_efficiency_percentage)
-                                donut_path = os.path.join(project_dir, 'chart_donut.png')
-                                pio.write_image(donut_fig, donut_path, format='png',
-                                              width=350, height=250, scale=2)
-                                
-                                # Save breakdown chart
-                                comparison_fig = create_volume_comparison_chart(box_vol, prod_vol, vol_unit)
-                                breakdown_path = os.path.join(project_dir, 'chart_breakdown.png')
-                                pio.write_image(comparison_fig, breakdown_path, format='png',
-                                              width=700, height=200, scale=2)
-                                
-                                st.success("✅ Volume Efficiency Analysis charts saved!")
+                                # Try to save charts - this is optional and may fail
+                                charts_saved = False
+                                try:
+                                    # Save gauge chart
+                                    gauge_fig = create_efficiency_gauge(volume_efficiency_percentage)
+                                    gauge_path = os.path.join(project_dir, 'chart_gauge.png')
+                                    pio.write_image(gauge_fig, gauge_path, format='png', 
+                                                  width=350, height=250, scale=2)
+                                    
+                                    # Save donut chart
+                                    donut_fig = create_donut_chart(volume_efficiency_percentage)
+                                    donut_path = os.path.join(project_dir, 'chart_donut.png')
+                                    pio.write_image(donut_fig, donut_path, format='png',
+                                                  width=350, height=250, scale=2)
+                                    
+                                    # Save breakdown chart
+                                    comparison_fig = create_volume_comparison_chart(box_vol, prod_vol, vol_unit)
+                                    breakdown_path = os.path.join(project_dir, 'chart_breakdown.png')
+                                    pio.write_image(comparison_fig, breakdown_path, format='png',
+                                                  width=700, height=200, scale=2)
+                                    
+                                    charts_saved = True
+                                    st.success("✅ Volume Efficiency Analysis charts saved!")
+                                    
+                                except Exception as img_err:
+                                    # Chart saving failed - this is OK, not critical
+                                    error_msg = str(img_err)
+                                    if "Chrome" in error_msg or "chrome" in error_msg:
+                                        # Chrome/Chromium needed for Kaleido
+                                        with st.expander("ℹ️ Chart Export Requires Chrome (Optional Feature)", expanded=False):
+                                            st.info("""
+                                            **Volume Efficiency Analysis charts** require Google Chrome or Chromium to export.
+                                            
+                                            Your 3D snapshot was saved successfully! Charts are optional.
+                                            
+                                            **To enable chart export:**
+                                            
+                                            **Option 1: Install Chrome**
+                                            - Download from: https://www.google.com/chrome/
+                                            
+                                            **Option 2: Install Chromium (Linux)**
+                                            ```bash
+                                            # Ubuntu/Debian
+                                            sudo apt-get install chromium-browser
+                                            
+                                            # Or use plotly helper
+                                            plotly_get_chrome
+                                            ```
+                                            
+                                            **Why Chrome is needed:**
+                                            Kaleido uses Chrome's rendering engine to convert interactive charts to PNG images.
+                                            
+                                            **Note:** Charts appear in the app (Project Overview) without Chrome. 
+                                            Chrome is only needed to save them for PDF reports.
+                                            """)
+                                    else:
+                                        # Other error
+                                        st.info(f"ℹ️ Chart export unavailable: {error_msg[:100]}")
                                 
                             except ImportError:
-                                st.info("💡 Install kaleido to save charts: pip install kaleido")
-                            except Exception as chart_err:
-                                st.warning(f"⚠️ Chart saving failed: {chart_err}")
+                                # Kaleido not installed - this is OK
+                                with st.expander("ℹ️ Chart Export Not Available (Optional Feature)", expanded=False):
+                                    st.info("""
+                                    **Volume Efficiency Analysis charts** can be saved for PDF reports.
+                                    
+                                    Your 3D snapshot was saved successfully! Charts are optional.
+                                    
+                                    **To enable chart export:**
+                                    ```bash
+                                    pip install kaleido>=0.2.1
+                                    ```
+                                    
+                                    Then install Chrome/Chromium (see above for instructions).
+                                    
+                                    **Note:** Charts still appear in the app (Project Overview) without export capability.
+                                    """)
                         
                     except Exception as snap_err:
                         st.warning(f"⚠️ 3D snapshot failed: {snap_err}")

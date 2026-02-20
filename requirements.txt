@@ -1,13 +1,16 @@
 # Streamlit App Requirements
-# Core Dependencies
+# Core Dependencies (Required)
 streamlit>=1.28.0
 pandas>=1.5.0
 numpy>=1.24.0
 
-# Visualization
+# Visualization (Required)
 plotly>=5.0.0
 matplotlib>=3.5.0
-kaleido>=0.2.1
 
-# PDF Generation
+# PDF Generation (Required)
 reportlab>=3.6.0
+
+# Optional: Chart Export to PDF
+# Requires Chrome/Chromium to be installed
+# kaleido>=0.2.1
