@@ -676,10 +676,15 @@ def create_efficiency_gauge(efficiency_percentage):
 
 
 def create_3d_snapshot(length, width, height, product_volume_pct,
-                        dimension_unit='inches', project_number=None):
+                        dimension_unit='inches', project_number=None, 
+                        elev=22, azim=-55):
     """
     Render a static PNG of the 3D volume preview using matplotlib.
     Saves to dva_projects/project_{N}/3d_preview.png and returns the path.
+    
+    Parameters:
+    - elev: Camera elevation angle in degrees (default: 22)
+    - azim: Camera azimuth angle in degrees (default: -55)
     """
     if not MATPLOTLIB_AVAILABLE:
         raise ImportError("Matplotlib is not installed. Cannot generate 3D snapshot.")
@@ -731,7 +736,8 @@ def create_3d_snapshot(length, width, height, product_volume_pct,
         ax.plot([-l,-l],[-w,w],[gz,gz],color=gc,lw=0.5,alpha=0.6)
         ax.plot([-l,-l],[gy,gy],[-h,h],color=gc,lw=0.5,alpha=0.6)
 
-    ax.view_init(elev=22, azim=-55)
+    # Use provided camera angles
+    ax.view_init(elev=elev, azim=azim)
     ax.set_box_aspect([length, width, height])
 
     # Dimension callouts with lines
@@ -2696,6 +2702,70 @@ with tab1:
             else:
                 st.success(f"✅ Box has sufficient space with {remaining_volume_result:,.2f} {remaining_unit} remaining")
             
+            # Camera Angle Controls for 3D Snapshot
+            st.markdown("---")
+            st.markdown("### 📸 3D Snapshot Settings")
+            st.caption("Adjust the camera angle for your 3D snapshot. Rotate the 3D graphic above to find your desired view, then set similar angles here.")
+            
+            cam_col1, cam_col2 = st.columns(2)
+            
+            with cam_col1:
+                # Initialize camera angles if not set
+                if 'camera_elevation' not in st.session_state:
+                    st.session_state.camera_elevation = 22
+                
+                camera_elev = st.slider(
+                    "Elevation (vertical angle)",
+                    min_value=-90,
+                    max_value=90,
+                    value=st.session_state.camera_elevation,
+                    step=5,
+                    help="Vertical viewing angle: 0° = horizontal, 90° = top view, -90° = bottom view"
+                )
+                st.session_state.camera_elevation = camera_elev
+            
+            with cam_col2:
+                # Initialize camera angles if not set
+                if 'camera_azimuth' not in st.session_state:
+                    st.session_state.camera_azimuth = -55
+                
+                camera_azim = st.slider(
+                    "Azimuth (rotation angle)",
+                    min_value=-180,
+                    max_value=180,
+                    value=st.session_state.camera_azimuth,
+                    step=5,
+                    help="Horizontal rotation angle: 0° = front, 90° = right side, -90° = left side"
+                )
+                st.session_state.camera_azimuth = camera_azim
+            
+            # Quick preset buttons
+            preset_col1, preset_col2, preset_col3, preset_col4 = st.columns(4)
+            
+            with preset_col1:
+                if st.button("Front View", use_container_width=True):
+                    st.session_state.camera_elevation = 20
+                    st.session_state.camera_azimuth = 0
+                    st.rerun()
+            
+            with preset_col2:
+                if st.button("Right Side", use_container_width=True):
+                    st.session_state.camera_elevation = 20
+                    st.session_state.camera_azimuth = 90
+                    st.rerun()
+            
+            with preset_col3:
+                if st.button("Top View", use_container_width=True):
+                    st.session_state.camera_elevation = 90
+                    st.session_state.camera_azimuth = -55
+                    st.rerun()
+            
+            with preset_col4:
+                if st.button("Isometric", use_container_width=True):
+                    st.session_state.camera_elevation = 22
+                    st.session_state.camera_azimuth = -55
+                    st.rerun()
+            
             # Save Analysis Data Button
             st.markdown("")  # Small spacing
             if st.button("💾 Save Analysis Data", use_container_width=True, type="secondary", key="save_analysis_data"):
@@ -2710,15 +2780,26 @@ with tab1:
                     st.info("💡 To enable 3D snapshots, install matplotlib: `pip install matplotlib`")
                 else:
                     try:
+                        # Get camera angles from session state
+                        elev = st.session_state.get('camera_elevation', 22)
+                        azim = st.session_state.get('camera_azimuth', -55)
+                        
                         snapshot_path = create_3d_snapshot(
                             st.session_state['box_length'],
                             st.session_state['box_width'],
                             st.session_state['box_height'],
                             volume_efficiency_percentage,
                             st.session_state.pref_dimension_unit,
-                            project_number=pid
+                            project_number=pid,
+                            elev=elev,
+                            azim=azim
                         )
                         st.session_state.snapshot_path = snapshot_path
+                        
+                        # Save camera angles to project data
+                        st.session_state.camera_elev_saved = elev
+                        st.session_state.camera_azim_saved = azim
+                        
                     except Exception as snap_err:
                         st.warning(f"⚠️ 3D snapshot failed: {snap_err}")
 
@@ -2964,182 +3045,6 @@ with tab2:
             else:
                 st.warning("⚠️ Please select at least one project to delete")
         
-        # ═══════════════════════════════════════════════════════════
-        # Remaining Volume Comparison (Visual Analysis)
-        # ═══════════════════════════════════════════════════════════
-        if len(st.session_state.projects) > 0:
-            # Filter projects with box data
-            projects_with_boxes = [p for p in st.session_state.projects if p.get('box_volume_mm3', 0) > 0]
-            
-            if len(projects_with_boxes) > 0:
-                st.markdown("---")
-                st.markdown("### 📊 Project Comparison: Remaining Volume Analysis")
-                st.caption("Visual comparison of space utilization across all projects")
-                
-                # Prepare data for comparison
-                project_names = []
-                remaining_volumes = []
-                efficiency_percentages = []
-                
-                for proj in projects_with_boxes:
-                    # Get conversion factor
-                    vol_unit = proj.get('box_result_unit', 'cubic inches')
-                    mm3_to_unit = {
-                        'cubic mm': 1, 'cubic cm': 0.001,
-                        'cubic inches': 0.000061023744, 'cubic feet': 0.000000035315
-                    }
-                    factor = mm3_to_unit.get(vol_unit, 0.001)
-                    
-                    # Calculate values
-                    box_vol_mm3 = proj.get('box_volume_mm3', 0)
-                    total_vol_mm3 = proj.get('total_product_volume_mm3', proj.get('primary_volume_mm3', 0))
-                    remaining_mm3 = box_vol_mm3 - total_vol_mm3
-                    remaining_display = remaining_mm3 * factor
-                    efficiency = (total_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
-                    
-                    project_names.append(f"#{proj['project_number']} - {proj['project_name'][:30]}")
-                    remaining_volumes.append(remaining_display)
-                    efficiency_percentages.append(efficiency)
-                
-                # Create comparison visualization
-                if len(projects_with_boxes) > 1:
-                    # Multi-project comparison chart
-                    import plotly.graph_objects as go
-                    
-                    fig = go.Figure()
-                    
-                    # Add remaining volume bars
-                    fig.add_trace(go.Bar(
-                        name='Remaining Volume',
-                        x=project_names,
-                        y=remaining_volumes,
-                        marker=dict(
-                            color=remaining_volumes,
-                            colorscale='RdYlGn_r',  # Red (bad) to Green (good)
-                            showscale=True,
-                            colorbar=dict(title="Volume")
-                        ),
-                        text=[f"{v:.2f}" for v in remaining_volumes],
-                        textposition='outside',
-                        hovertemplate='<b>%{x}</b><br>Remaining: %{y:.2f} ' + vol_unit + '<extra></extra>'
-                    ))
-                    
-                    fig.update_layout(
-                        title=dict(
-                            text=f'Remaining Volume Comparison ({vol_unit})',
-                            font=dict(size=18, color='white')
-                        ),
-                        xaxis=dict(
-                            title='Projects',
-                            tickangle=-45,
-                            color='white'
-                        ),
-                        yaxis=dict(
-                            title=f'Remaining Volume ({vol_unit})',
-                            color='white'
-                        ),
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='white'),
-                        showlegend=False,
-                        height=400,
-                        margin=dict(b=120)
-                    )
-                    
-                    st.plotly_chart(fig, use_container_width=True)
-                    
-                    # Add efficiency comparison
-                    st.markdown("#### Volume Efficiency Comparison")
-                    
-                    fig_eff = go.Figure()
-                    
-                    colors = ['#ef4444' if e < 50 else '#f59e0b' if e < 75 else '#10b981' for e in efficiency_percentages]
-                    
-                    fig_eff.add_trace(go.Bar(
-                        x=project_names,
-                        y=efficiency_percentages,
-                        marker=dict(color=colors),
-                        text=[f"{e:.1f}%" for e in efficiency_percentages],
-                        textposition='outside',
-                        hovertemplate='<b>%{x}</b><br>Efficiency: %{y:.1f}%<extra></extra>'
-                    ))
-                    
-                    fig_eff.update_layout(
-                        title=dict(
-                            text='Volume Efficiency by Project',
-                            font=dict(size=18, color='white')
-                        ),
-                        xaxis=dict(
-                            title='Projects',
-                            tickangle=-45,
-                            color='white'
-                        ),
-                        yaxis=dict(
-                            title='Efficiency (%)',
-                            range=[0, 100],
-                            color='white'
-                        ),
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='white'),
-                        showlegend=False,
-                        height=400,
-                        margin=dict(b=120)
-                    )
-                    
-                    # Add reference lines
-                    fig_eff.add_hline(y=50, line_dash="dash", line_color="red", opacity=0.5,
-                                     annotation_text="50% (Poor)", annotation_position="right")
-                    fig_eff.add_hline(y=75, line_dash="dash", line_color="orange", opacity=0.5,
-                                     annotation_text="75% (Fair)", annotation_position="right")
-                    
-                    st.plotly_chart(fig_eff, use_container_width=True)
-                    
-                    # Summary statistics
-                    col_stats1, col_stats2, col_stats3 = st.columns(3)
-                    
-                    with col_stats1:
-                        avg_remaining = sum(remaining_volumes) / len(remaining_volumes)
-                        st.metric(
-                            "Average Remaining Volume",
-                            f"{avg_remaining:.2f} {vol_unit}",
-                            delta=None
-                        )
-                    
-                    with col_stats2:
-                        avg_efficiency = sum(efficiency_percentages) / len(efficiency_percentages)
-                        st.metric(
-                            "Average Efficiency",
-                            f"{avg_efficiency:.1f}%",
-                            delta=None
-                        )
-                    
-                    with col_stats3:
-                        best_project = projects_with_boxes[efficiency_percentages.index(max(efficiency_percentages))]
-                        st.metric(
-                            "Most Efficient Project",
-                            f"#{best_project['project_number']}",
-                            delta=f"{max(efficiency_percentages):.1f}%"
-                        )
-                else:
-                    # Single project - show simple stats
-                    proj = projects_with_boxes[0]
-                    vol_unit = proj.get('box_result_unit', 'cubic inches')
-                    
-                    col_single1, col_single2 = st.columns(2)
-                    
-                    with col_single1:
-                        st.metric(
-                            "Remaining Volume",
-                            f"{remaining_volumes[0]:.2f} {vol_unit}"
-                        )
-                    
-                    with col_single2:
-                        st.metric(
-                            "Volume Efficiency",
-                            f"{efficiency_percentages[0]:.1f}%"
-                        )
-        
         # Project Overview Section
         st.markdown("---")
         
@@ -3370,7 +3275,82 @@ with tab2:
                                 ], '#FFF3E0'))
                                 left_items.append(tiny())
 
+                            # ═══════════════════════════════════════════════════════════════
+                            # VOLUME EFFICIENCY ANALYSIS CHARTS (if box data exists)
+                            # ═══════════════════════════════════════════════════════════════
+                            if box_vol_mm3 > 0:
+                                left_items.append(sec_hdr('VOLUME EFFICIENCY ANALYSIS', '#9C27B0'))
+                                left_items.append(micro())
+                                
+                                # Generate chart images using plotly
+                                try:
+                                    import plotly.io as pio
+                                    import tempfile
+                                    
+                                    # Create temp directory for chart images
+                                    temp_dir = tempfile.mkdtemp()
+                                    
+                                    # 1. Efficiency Gauge Chart
+                                    gauge_fig = create_efficiency_gauge(eff_pct)
+                                    gauge_path = os.path.join(temp_dir, 'gauge.png')
+                                    pio.write_image(gauge_fig, gauge_path, format='png', 
+                                                  width=350, height=250, scale=2)
+                                    
+                                    # 2. Donut Chart
+                                    donut_fig = create_donut_chart(eff_pct)
+                                    donut_path = os.path.join(temp_dir, 'donut.png')
+                                    pio.write_image(donut_fig, donut_path, format='png',
+                                                  width=350, height=250, scale=2)
+                                    
+                                    # 3. Volume Breakdown Chart
+                                    comparison_fig = create_volume_comparison_chart(
+                                        fmv(box_vol_mm3, vol_unit),
+                                        fmv(total_vol_mm3, vol_unit),
+                                        vol_unit
+                                    )
+                                    breakdown_path = os.path.join(temp_dir, 'breakdown.png')
+                                    pio.write_image(comparison_fig, breakdown_path, format='png',
+                                                  width=700, height=200, scale=2)
+                                    
+                                    # Add charts to PDF in a 2-column layout
+                                    chart_table_data = [[
+                                        RLImage(gauge_path, width=PW*0.30, height=PW*0.30*250/350),
+                                        RLImage(donut_path, width=PW*0.30, height=PW*0.30*250/350)
+                                    ]]
+                                    chart_table = Table(chart_table_data, colWidths=[PW*0.31, PW*0.31])
+                                    chart_table.setStyle(TableStyle([
+                                        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                                        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                                    ]))
+                                    left_items.append(chart_table)
+                                    left_items.append(micro())
+                                    
+                                    # Add volume breakdown chart (full width)
+                                    left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
+                                    left_items.append(tiny())
+                                    
+                                except ImportError:
+                                    # If kaleido not installed, add note
+                                    left_items.append(Paragraph(
+                                        '<i>Chart images require kaleido package. Install with: pip install kaleido</i>',
+                                        ParagraphStyle('Note', parent=styles['Normal'],
+                                            fontSize=8, textColor=colors.HexColor('#666666'),
+                                            alignment=TA_CENTER)
+                                    ))
+                                    left_items.append(tiny())
+                                except Exception as chart_err:
+                                    # If chart generation fails, continue without charts
+                                    left_items.append(Paragraph(
+                                        f'<i>Chart generation unavailable: {str(chart_err)[:50]}</i>',
+                                        ParagraphStyle('Note', parent=styles['Normal'],
+                                            fontSize=8, textColor=colors.HexColor('#666666'),
+                                            alignment=TA_CENTER)
+                                    ))
+                                    left_items.append(tiny())
+                            
+                            # ═══════════════════════════════════════════════════════════════
                             # 3D VOLUME PREVIEW - Add 3D snapshot for this project
+                            # ═══════════════════════════════════════════════════════════════
                             # First, try to get the snapshot path from the project record
                             snap = project.get('snapshot_path')
                             # If not in project, try current session state

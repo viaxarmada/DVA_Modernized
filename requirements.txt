@@ -7,6 +7,7 @@ numpy>=1.24.0
 # Visualization
 plotly>=5.0.0
 matplotlib>=3.5.0
+kaleido>=0.2.1
 
 # PDF Generation
 reportlab>=3.6.0
