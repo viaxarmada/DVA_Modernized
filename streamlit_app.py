@@ -3276,8 +3276,12 @@ with tab2:
                             # Section 2: Primary Product Volume
                             left_items.append(sec_hdr('PRIMARY PRODUCT VOLUME','#2E7D32'))
                             left_items.append(micro())
+                            
+                            # Get weight with multiple fallbacks
+                            weight_val = project.get('weight', project.get('product_weight', 0.0))
+                            
                             left_items.append(kv_table([
-                                ['Volume Weight of Water:', f"{project.get('weight',0)} {w_unit}"],
+                                ['Volume Weight of Water:', f"{weight_val} {w_unit}"],
                                 ['Unit Volume:',  f"{fmv(unit_vol_mm3, vol_unit)} {vol_unit}"],
                                 ['Quantity:',     str(qty)],
                                 ['Total Volume:', f"{fmv(total_vol_mm3,vol_unit)} {vol_unit}"],
@@ -3392,10 +3396,6 @@ with tab2:
                             # Append all sections directly
                             for item in left_items:
                                 elements.append(item)
-                            
-                            # Add page break after each project (except the last one)
-                            if proj_idx < len(st.session_state.loaded_projects_overview) - 1:
-                                elements.append(PageBreak())
 
                         # ════════════════════════════════════════════════════════════════
                         # Comparison table (multi-project)
@@ -3527,7 +3527,7 @@ with tab2:
                         total_vol_disp = total_vol_mm3 * factor
 
                         # Primary Product
-                        weight_val = project.get('weight', 0)
+                        weight_val = project.get('weight', project.get('product_weight', 0.0))
                         st.success(f"""
                         **Primary Product**  
                         Volume Weight of Water: {weight_val:,.2f} {disp_w_unit}  
