@@ -3306,92 +3306,96 @@ with tab2:
                                 left_items.append(tiny())
 
                             # ═══════════════════════════════════════════════════════════════
-                            # VOLUME EFFICIENCY ANALYSIS CHARTS (from saved files)
+                            # 3D VOLUME PREVIEW & EFFICIENCY ANALYSIS (combined layout)
                             # ═══════════════════════════════════════════════════════════════
                             if box_vol_mm3 > 0:
-                                # Check for saved charts in project folder
+                                # Check for saved charts and snapshot
                                 pid = project.get('project_number')
                                 project_dir = f"dva_projects/project_{pid}"
                                 
                                 gauge_path = os.path.join(project_dir, 'chart_gauge.png')
                                 donut_path = os.path.join(project_dir, 'chart_donut.png')
                                 breakdown_path = os.path.join(project_dir, 'chart_breakdown.png')
+                                snap = project.get('snapshot_path')
+                                if not snap:
+                                    snap = st.session_state.get('snapshot_path')
                                 
                                 charts_exist = (os.path.exists(gauge_path) and 
                                               os.path.exists(donut_path) and 
                                               os.path.exists(breakdown_path))
+                                snapshot_exists = snap and os.path.exists(snap)
                                 
-                                if charts_exist:
-                                    left_items.append(sec_hdr('VOLUME EFFICIENCY ANALYSIS', '#9C27B0'))
+                                if snapshot_exists or charts_exist:
+                                    left_items.append(micro())
+                                    left_items.append(sec_hdr('3D VOLUME PREVIEW & EFFICIENCY ANALYSIS', '#1565C0'))
                                     left_items.append(micro())
                                     
                                     try:
-                                        # Add charts to PDF in a 2-column layout
-                                        chart_table_data = [[
-                                            RLImage(gauge_path, width=PW*0.30, height=PW*0.30*250/350),
-                                            RLImage(donut_path, width=PW*0.30, height=PW*0.30*250/350)
-                                        ]]
-                                        chart_table = Table(chart_table_data, colWidths=[PW*0.31, PW*0.31])
-                                        chart_table.setStyle(TableStyle([
-                                            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                                            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                                        from reportlab.platypus import Image as RLImage
+                                        
+                                        # Create 2-column layout: 3D graphic (left) + Charts (right)
+                                        left_col_items = []
+                                        right_col_items = []
+                                        
+                                        # LEFT COLUMN: 3D Snapshot
+                                        if snapshot_exists:
+                                            img_w = PW * 0.38  # 38% of page width for 3D
+                                            img_h = img_w * (5/7)  # Maintain 7:5 aspect ratio
+                                            left_col_items.append(RLImage(snap, width=img_w, height=img_h))
+                                        else:
+                                            left_col_items.append(Paragraph(
+                                                '<i>3D preview not available</i>',
+                                                ParagraphStyle('Note', parent=styles['Normal'],
+                                                    fontSize=8, textColor=colors.HexColor('#666666'),
+                                                    alignment=TA_CENTER)
+                                            ))
+                                        
+                                        # RIGHT COLUMN: Efficiency Charts (stacked vertically)
+                                        if charts_exist:
+                                            chart_w = PW * 0.23  # 23% width for each chart
+                                            chart_h_gauge = chart_w * (250/350)  # Maintain aspect ratio
+                                            chart_h_donut = chart_w * (250/350)
+                                            
+                                            # Stack gauge and donut vertically
+                                            right_col_items.append(RLImage(gauge_path, width=chart_w, height=chart_h_gauge))
+                                            right_col_items.append(Spacer(1, 0.05*inch))
+                                            right_col_items.append(RLImage(donut_path, width=chart_w, height=chart_h_donut))
+                                        else:
+                                            right_col_items.append(Paragraph(
+                                                '<i>Charts not available</i>',
+                                                ParagraphStyle('Note', parent=styles['Normal'],
+                                                    fontSize=8, textColor=colors.HexColor('#666666'),
+                                                    alignment=TA_CENTER)
+                                            ))
+                                        
+                                        # Build table with 3D (left) and charts (right)
+                                        preview_table = Table(
+                                            [[left_col_items, right_col_items]],
+                                            colWidths=[PW*0.40, PW*0.22]
+                                        )
+                                        preview_table.setStyle(TableStyle([
+                                            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                                            ('ALIGN', (0,0), (0,0), 'CENTER'),
+                                            ('ALIGN', (1,0), (1,0), 'CENTER'),
                                         ]))
-                                        left_items.append(chart_table)
+                                        left_items.append(preview_table)
                                         left_items.append(micro())
                                         
-                                        # Add volume breakdown chart (full width)
-                                        left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
+                                        # Add volume breakdown chart below (full width)
+                                        if charts_exist and os.path.exists(breakdown_path):
+                                            left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
+                                        
                                         left_items.append(tiny())
                                         
-                                    except Exception as chart_err:
-                                        # If chart loading fails, skip charts
-                                        pass
-                            
-                            # ═══════════════════════════════════════════════════════════════
-                            # 3D VOLUME PREVIEW - Add 3D snapshot for this project
-                            # ═══════════════════════════════════════════════════════════════
-                            # First, try to get the snapshot path from the project record
-                            snap = project.get('snapshot_path')
-                            # If not in project, try current session state
-                            if not snap:
-                                snap = st.session_state.get('snapshot_path')
-                            
-                            # Add the 3D graphic if snapshot exists
-                            if snap and os.path.exists(snap):
-                                from reportlab.platypus import Image as RLImage
-                                try:
-                                    img_w = PW * 0.62  # 62% of page width
-                                    img_h = img_w * (5/7)  # Maintain 7:5 aspect ratio
-                                    left_items.append(micro())
-                                    left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
-                                    left_items.append(micro())
-                                    left_items.append(RLImage(snap, width=img_w, height=img_h))
-                                    left_items.append(tiny())
-                                except Exception as e:
-                                    # If image fails to load, add a note instead
-                                    left_items.append(micro())
-                                    left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
-                                    left_items.append(micro())
-                                    left_items.append(Paragraph(
-                                        f'<i>3D preview image not available (Error: {str(e)[:50]})</i>',
-                                        ParagraphStyle('Note', parent=styles['Normal'],
-                                            fontSize=8, textColor=colors.HexColor('#666666'),
-                                            alignment=TA_CENTER)
-                                    ))
-                                    left_items.append(tiny())
-                            else:
-                                # Add note that 3D preview is not available for this project
-                                if box_vol_mm3 > 0:  # Only show note if project has box data
-                                    left_items.append(micro())
-                                    left_items.append(sec_hdr('3D VOLUME PREVIEW', '#1565C0'))
-                                    left_items.append(micro())
-                                    left_items.append(Paragraph(
-                                        '<i>3D preview not saved for this project. Click "Save Analysis Data" in Volume Analysis to generate.</i>',
-                                        ParagraphStyle('Note', parent=styles['Normal'],
-                                            fontSize=8, textColor=colors.HexColor('#666666'),
-                                            alignment=TA_CENTER)
-                                    ))
-                                    left_items.append(tiny())
+                                    except Exception as e:
+                                        # If layout fails, add note
+                                        left_items.append(Paragraph(
+                                            f'<i>Preview unavailable: {str(e)[:50]}</i>',
+                                            ParagraphStyle('Note', parent=styles['Normal'],
+                                                fontSize=8, textColor=colors.HexColor('#666666'),
+                                                alignment=TA_CENTER)
+                                        ))
+                                        left_items.append(tiny())
 
                             # Append all sections directly
                             for item in left_items:
