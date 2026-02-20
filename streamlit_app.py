@@ -771,6 +771,131 @@ def create_3d_snapshot(length, width, height, product_volume_pct,
     plt.close(fig_m)
     return img_path
 
+def create_pdf_efficiency_gauge_matplotlib(efficiency_pct, output_path):
+    """Create efficiency gauge using matplotlib for PDF"""
+    import numpy as np
+    
+    fig, ax = plt.subplots(figsize=(3.5, 2.5), facecolor='white')
+    ax.set_xlim(-1.2, 1.2)
+    ax.set_ylim(-0.2, 1.2)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    
+    # Background arc (grey)
+    theta = np.linspace(0, 180, 100)
+    x_bg = np.cos(np.radians(theta))
+    y_bg = np.sin(np.radians(theta))
+    ax.fill_between(x_bg, 0, y_bg, color='#e5e7eb', alpha=0.3)
+    
+    # Efficiency arc (colored based on percentage)
+    if efficiency_pct < 50:
+        color = '#ef4444'  # Red
+    elif efficiency_pct < 75:
+        color = '#f59e0b'  # Orange
+    else:
+        color = '#10b981'  # Green
+    
+    theta_fill = np.linspace(0, 180 * (efficiency_pct / 100), 100)
+    x_fill = np.cos(np.radians(theta_fill))
+    y_fill = np.sin(np.radians(theta_fill))
+    ax.fill_between(x_fill, 0, y_fill, color=color, alpha=0.8)
+    
+    # Border arc
+    ax.plot(x_bg, y_bg, color='#374151', linewidth=2)
+    
+    # Center text
+    ax.text(0, 0.3, f'{efficiency_pct:.1f}%', 
+            ha='center', va='center', fontsize=24, fontweight='bold', color='#1f2937')
+    ax.text(0, 0.05, 'Volume Efficiency', 
+            ha='center', va='center', fontsize=9, color='#6b7280')
+    
+    # Tick marks
+    for i in range(0, 101, 25):
+        angle = np.radians(180 * (i / 100))
+        x1, y1 = np.cos(angle) * 0.95, np.sin(angle) * 0.95
+        x2, y2 = np.cos(angle) * 1.05, np.sin(angle) * 1.05
+        ax.plot([x1, x2], [y1, y2], color='#374151', linewidth=1.5)
+        ax.text(x2 * 1.15, y2 * 1.15, f'{i}%', 
+                ha='center', va='center', fontsize=7, color='#6b7280')
+    
+    plt.tight_layout(pad=0.1)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+    return output_path
+
+def create_pdf_donut_chart_matplotlib(efficiency_pct, output_path):
+    """Create donut chart using matplotlib for PDF"""
+    fig, ax = plt.subplots(figsize=(3.5, 2.5), facecolor='white')
+    
+    # Data
+    sizes = [efficiency_pct, 100 - efficiency_pct]
+    colors = ['#10b981', '#3b82f6']
+    labels = ['Product', 'Remaining']
+    
+    # Create donut
+    wedges, texts = ax.pie(sizes, colors=colors, startangle=90, 
+                            counterclock=False, wedgeprops=dict(width=0.5))
+    
+    # Center text
+    ax.text(0, 0.1, f'{efficiency_pct:.1f}%', 
+            ha='center', va='center', fontsize=20, fontweight='bold', color='#1f2937')
+    ax.text(0, -0.15, 'Efficiency', 
+            ha='center', va='center', fontsize=8, color='#6b7280')
+    
+    # Legend
+    ax.legend(labels, loc='upper right', fontsize=8, frameon=False)
+    
+    ax.set_aspect('equal')
+    plt.tight_layout(pad=0.1)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+    return output_path
+
+def create_pdf_breakdown_bar_matplotlib(box_vol, product_vol, unit, output_path):
+    """Create volume breakdown bar using matplotlib for PDF"""
+    fig, ax = plt.subplots(figsize=(7, 2), facecolor='white')
+    
+    remaining_vol = box_vol - product_vol
+    
+    # Bar dimensions
+    bar_height = 0.6
+    y_pos = 0.5
+    
+    # Box volume bar (background)
+    ax.barh(y_pos, box_vol, height=bar_height, color='#3b82f6', alpha=0.3, 
+            edgecolor='#2563eb', linewidth=2)
+    
+    # Product volume bar
+    ax.barh(y_pos, product_vol, height=bar_height, color='#10b981', alpha=0.8,
+            edgecolor='#059669', linewidth=1.5)
+    
+    # Labels
+    ax.text(box_vol / 2, y_pos, f'Box: {box_vol:.2f} {unit}', 
+            ha='center', va='center', fontsize=10, fontweight='bold', color='#1e40af')
+    
+    if product_vol > box_vol * 0.1:  # Only show if big enough
+        ax.text(product_vol / 2, y_pos, f'Product: {product_vol:.2f}', 
+                ha='center', va='center', fontsize=9, color='white', fontweight='bold')
+    
+    if remaining_vol > box_vol * 0.05:
+        ax.text(product_vol + remaining_vol / 2, y_pos, f'Remaining: {remaining_vol:.2f}',
+                ha='center', va='center', fontsize=9, color='#1e40af')
+    
+    ax.set_xlim(0, box_vol * 1.05)
+    ax.set_ylim(0, 1)
+    ax.set_xlabel(f'Volume ({unit})', fontsize=10, color='#374151')
+    ax.set_title('Volume Breakdown', fontsize=11, fontweight='bold', color='#1f2937', pad=10)
+    ax.set_yticks([])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.grid(axis='x', alpha=0.3, linestyle='--')
+    
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight', facecolor='white')
+    plt.close()
+    return output_path
+
 def create_3d_box_visualization(length, width, height, product_volume_pct, dimension_unit='inches'):
     """Create interactive 3D box with dimension labels"""
     
@@ -3309,93 +3434,102 @@ with tab2:
                             # 3D VOLUME PREVIEW & EFFICIENCY ANALYSIS (combined layout)
                             # ═══════════════════════════════════════════════════════════════
                             if box_vol_mm3 > 0:
-                                # Check for saved charts and snapshot
+                                # Get 3D snapshot path
                                 pid = project.get('project_number')
-                                project_dir = f"dva_projects/project_{pid}"
-                                
-                                gauge_path = os.path.join(project_dir, 'chart_gauge.png')
-                                donut_path = os.path.join(project_dir, 'chart_donut.png')
-                                breakdown_path = os.path.join(project_dir, 'chart_breakdown.png')
                                 snap = project.get('snapshot_path')
                                 if not snap:
                                     snap = st.session_state.get('snapshot_path')
                                 
-                                charts_exist = (os.path.exists(gauge_path) and 
-                                              os.path.exists(donut_path) and 
-                                              os.path.exists(breakdown_path))
                                 snapshot_exists = snap and os.path.exists(snap)
                                 
-                                if snapshot_exists or charts_exist:
-                                    left_items.append(micro())
-                                    left_items.append(sec_hdr('3D VOLUME PREVIEW & EFFICIENCY ANALYSIS', '#1565C0'))
-                                    left_items.append(micro())
+                                left_items.append(micro())
+                                left_items.append(sec_hdr('3D VOLUME PREVIEW & EFFICIENCY ANALYSIS', '#1565C0'))
+                                left_items.append(micro())
+                                
+                                try:
+                                    from reportlab.platypus import Image as RLImage
+                                    import tempfile
                                     
-                                    try:
-                                        from reportlab.platypus import Image as RLImage
-                                        
-                                        # Create 2-column layout: 3D graphic (left) + Charts (right)
-                                        left_col_items = []
-                                        right_col_items = []
-                                        
-                                        # LEFT COLUMN: 3D Snapshot
-                                        if snapshot_exists:
-                                            img_w = PW * 0.38  # 38% of page width for 3D
-                                            img_h = img_w * (5/7)  # Maintain 7:5 aspect ratio
-                                            left_col_items.append(RLImage(snap, width=img_w, height=img_h))
-                                        else:
-                                            left_col_items.append(Paragraph(
-                                                '<i>3D preview not available</i>',
-                                                ParagraphStyle('Note', parent=styles['Normal'],
-                                                    fontSize=8, textColor=colors.HexColor('#666666'),
-                                                    alignment=TA_CENTER)
-                                            ))
-                                        
-                                        # RIGHT COLUMN: Efficiency Charts (stacked vertically)
-                                        if charts_exist:
-                                            chart_w = PW * 0.23  # 23% width for each chart
-                                            chart_h_gauge = chart_w * (250/350)  # Maintain aspect ratio
-                                            chart_h_donut = chart_w * (250/350)
-                                            
-                                            # Stack gauge and donut vertically
-                                            right_col_items.append(RLImage(gauge_path, width=chart_w, height=chart_h_gauge))
-                                            right_col_items.append(Spacer(1, 0.05*inch))
-                                            right_col_items.append(RLImage(donut_path, width=chart_w, height=chart_h_donut))
-                                        else:
-                                            right_col_items.append(Paragraph(
-                                                '<i>Charts not available</i>',
-                                                ParagraphStyle('Note', parent=styles['Normal'],
-                                                    fontSize=8, textColor=colors.HexColor('#666666'),
-                                                    alignment=TA_CENTER)
-                                            ))
-                                        
-                                        # Build table with 3D (left) and charts (right)
-                                        preview_table = Table(
-                                            [[left_col_items, right_col_items]],
-                                            colWidths=[PW*0.40, PW*0.22]
-                                        )
-                                        preview_table.setStyle(TableStyle([
-                                            ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                                            ('ALIGN', (0,0), (0,0), 'CENTER'),
-                                            ('ALIGN', (1,0), (1,0), 'CENTER'),
-                                        ]))
-                                        left_items.append(preview_table)
-                                        left_items.append(micro())
-                                        
-                                        # Add volume breakdown chart below (full width)
-                                        if charts_exist and os.path.exists(breakdown_path):
-                                            left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
-                                        
-                                        left_items.append(tiny())
-                                        
-                                    except Exception as e:
-                                        # If layout fails, add note
-                                        left_items.append(Paragraph(
-                                            f'<i>Preview unavailable: {str(e)[:50]}</i>',
+                                    # Create temporary directory for on-the-fly chart generation
+                                    temp_dir = tempfile.mkdtemp()
+                                    
+                                    # Generate charts using matplotlib (always works, no Chrome needed)
+                                    gauge_path = os.path.join(temp_dir, 'gauge.png')
+                                    donut_path = os.path.join(temp_dir, 'donut.png')
+                                    breakdown_path = os.path.join(temp_dir, 'breakdown.png')
+                                    
+                                    # Calculate efficiency for charts
+                                    eff_pct = (total_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
+                                    
+                                    # Get volumes in display units using to_unit function
+                                    box_vol_display = to_unit(box_vol_mm3, vol_unit)
+                                    prod_vol_display = to_unit(total_vol_mm3, vol_unit)
+                                    
+                                    # Generate charts with matplotlib
+                                    create_pdf_efficiency_gauge_matplotlib(eff_pct, gauge_path)
+                                    create_pdf_donut_chart_matplotlib(eff_pct, donut_path)
+                                    create_pdf_breakdown_bar_matplotlib(box_vol_display, prod_vol_display, vol_unit, breakdown_path)
+                                    
+                                    # Create 2-column layout: 3D graphic (left) + Charts (right)
+                                    left_col_items = []
+                                    right_col_items = []
+                                    
+                                    # LEFT COLUMN: 3D Snapshot
+                                    if snapshot_exists:
+                                        img_w = PW * 0.38  # 38% of page width for 3D
+                                        img_h = img_w * (5/7)  # Maintain 7:5 aspect ratio
+                                        left_col_items.append(RLImage(snap, width=img_w, height=img_h))
+                                    else:
+                                        left_col_items.append(Paragraph(
+                                            '<i>3D preview not available</i>',
                                             ParagraphStyle('Note', parent=styles['Normal'],
                                                 fontSize=8, textColor=colors.HexColor('#666666'),
                                                 alignment=TA_CENTER)
                                         ))
-                                        left_items.append(tiny())
+                                    
+                                    # RIGHT COLUMN: Efficiency Charts (stacked vertically)
+                                    chart_w = PW * 0.23  # 23% width for each chart
+                                    chart_h_gauge = chart_w * (250/350)  # Maintain aspect ratio
+                                    chart_h_donut = chart_w * (250/350)
+                                    
+                                    # Stack gauge and donut vertically
+                                    right_col_items.append(RLImage(gauge_path, width=chart_w, height=chart_h_gauge))
+                                    right_col_items.append(Spacer(1, 0.05*inch))
+                                    right_col_items.append(RLImage(donut_path, width=chart_w, height=chart_h_donut))
+                                    
+                                    # Build table with 3D (left) and charts (right)
+                                    preview_table = Table(
+                                        [[left_col_items, right_col_items]],
+                                        colWidths=[PW*0.40, PW*0.22]
+                                    )
+                                    preview_table.setStyle(TableStyle([
+                                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                                        ('ALIGN', (0,0), (0,0), 'CENTER'),
+                                        ('ALIGN', (1,0), (1,0), 'CENTER'),
+                                    ]))
+                                    left_items.append(preview_table)
+                                    left_items.append(micro())
+                                    
+                                    # Add volume breakdown chart below (full width)
+                                    left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
+                                    left_items.append(tiny())
+                                    
+                                    # Clean up temp directory
+                                    import shutil
+                                    try:
+                                        shutil.rmtree(temp_dir)
+                                    except:
+                                        pass
+                                    
+                                except Exception as e:
+                                    # If layout fails, add note
+                                    left_items.append(Paragraph(
+                                        f'<i>Preview unavailable: {str(e)[:50]}</i>',
+                                        ParagraphStyle('Note', parent=styles['Normal'],
+                                            fontSize=8, textColor=colors.HexColor('#666666'),
+                                            alignment=TA_CENTER)
+                                    ))
+                                    left_items.append(tiny())
 
                             # Append all sections directly
                             for item in left_items:
