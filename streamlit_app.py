@@ -3514,12 +3514,10 @@ with tab2:
                                     left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
                                     left_items.append(tiny())
                                     
-                                    # Clean up temp directory
-                                    import shutil
-                                    try:
-                                        shutil.rmtree(temp_dir)
-                                    except:
-                                        pass
+                                    # Store temp_dir for cleanup later (after PDF is built)
+                                    if 'temp_chart_dirs' not in locals():
+                                        temp_chart_dirs = []
+                                    temp_chart_dirs.append(temp_dir)
                                     
                                 except Exception as e:
                                     # If layout fails, add note
@@ -3592,6 +3590,16 @@ with tab2:
 
                         # ── Build & download ──────────────────────────────────────────────
                         doc.build(elements)
+                        
+                        # Clean up temp chart directories now that PDF is built
+                        import shutil
+                        if 'temp_chart_dirs' in locals():
+                            for temp_dir in temp_chart_dirs:
+                                try:
+                                    shutil.rmtree(temp_dir)
+                                except:
+                                    pass
+                        
                         buf.seek(0)
                         pdf_bytes = buf.getvalue()
                         filename = f"DVA_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
