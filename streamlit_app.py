@@ -3430,104 +3430,7 @@ with tab2:
                                 ], '#FFF3E0'))
                                 left_items.append(tiny())
 
-                            # ═══════════════════════════════════════════════════════════════
-                            # 3D VOLUME PREVIEW & EFFICIENCY ANALYSIS (combined layout)
-                            # ═══════════════════════════════════════════════════════════════
-                            if box_vol_mm3 > 0:
-                                # Get 3D snapshot path
-                                pid = project.get('project_number')
-                                snap = project.get('snapshot_path')
-                                if not snap:
-                                    snap = st.session_state.get('snapshot_path')
-                                
-                                snapshot_exists = snap and os.path.exists(snap)
-                                
-                                left_items.append(micro())
-                                left_items.append(sec_hdr('3D VOLUME PREVIEW & EFFICIENCY ANALYSIS', '#1565C0'))
-                                left_items.append(micro())
-                                
-                                try:
-                                    from reportlab.platypus import Image as RLImage
-                                    import tempfile
-                                    
-                                    # Create temporary directory for on-the-fly chart generation
-                                    temp_dir = tempfile.mkdtemp()
-                                    
-                                    # Generate charts using matplotlib (always works, no Chrome needed)
-                                    gauge_path = os.path.join(temp_dir, 'gauge.png')
-                                    donut_path = os.path.join(temp_dir, 'donut.png')
-                                    breakdown_path = os.path.join(temp_dir, 'breakdown.png')
-                                    
-                                    # Calculate efficiency for charts
-                                    eff_pct = (total_vol_mm3 / box_vol_mm3 * 100) if box_vol_mm3 > 0 else 0
-                                    
-                                    # Get volumes in display units using to_unit function
-                                    box_vol_display = to_unit(box_vol_mm3, vol_unit)
-                                    prod_vol_display = to_unit(total_vol_mm3, vol_unit)
-                                    
-                                    # Generate charts with matplotlib
-                                    create_pdf_efficiency_gauge_matplotlib(eff_pct, gauge_path)
-                                    create_pdf_donut_chart_matplotlib(eff_pct, donut_path)
-                                    create_pdf_breakdown_bar_matplotlib(box_vol_display, prod_vol_display, vol_unit, breakdown_path)
-                                    
-                                    # Create 2-column layout: 3D graphic (left) + Charts (right)
-                                    left_col_items = []
-                                    right_col_items = []
-                                    
-                                    # LEFT COLUMN: 3D Snapshot
-                                    if snapshot_exists:
-                                        img_w = PW * 0.38  # 38% of page width for 3D
-                                        img_h = img_w * (5/7)  # Maintain 7:5 aspect ratio
-                                        left_col_items.append(RLImage(snap, width=img_w, height=img_h))
-                                    else:
-                                        left_col_items.append(Paragraph(
-                                            '<i>3D preview not available</i>',
-                                            ParagraphStyle('Note', parent=styles['Normal'],
-                                                fontSize=8, textColor=colors.HexColor('#666666'),
-                                                alignment=TA_CENTER)
-                                        ))
-                                    
-                                    # RIGHT COLUMN: Efficiency Charts (stacked vertically)
-                                    chart_w = PW * 0.23  # 23% width for each chart
-                                    chart_h_gauge = chart_w * (250/350)  # Maintain aspect ratio
-                                    chart_h_donut = chart_w * (250/350)
-                                    
-                                    # Stack gauge and donut vertically
-                                    right_col_items.append(RLImage(gauge_path, width=chart_w, height=chart_h_gauge))
-                                    right_col_items.append(Spacer(1, 0.05*inch))
-                                    right_col_items.append(RLImage(donut_path, width=chart_w, height=chart_h_donut))
-                                    
-                                    # Build table with 3D (left) and charts (right)
-                                    preview_table = Table(
-                                        [[left_col_items, right_col_items]],
-                                        colWidths=[PW*0.40, PW*0.22]
-                                    )
-                                    preview_table.setStyle(TableStyle([
-                                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-                                        ('ALIGN', (0,0), (0,0), 'CENTER'),
-                                        ('ALIGN', (1,0), (1,0), 'CENTER'),
-                                    ]))
-                                    left_items.append(preview_table)
-                                    left_items.append(micro())
-                                    
-                                    # Add volume breakdown chart below (full width)
-                                    left_items.append(RLImage(breakdown_path, width=PW*0.62, height=PW*0.62*200/700))
-                                    left_items.append(tiny())
-                                    
-                                    # Store temp_dir for cleanup later (after PDF is built)
-                                    if 'temp_chart_dirs' not in locals():
-                                        temp_chart_dirs = []
-                                    temp_chart_dirs.append(temp_dir)
-                                    
-                                except Exception as e:
-                                    # If layout fails, add note
-                                    left_items.append(Paragraph(
-                                        f'<i>Preview unavailable: {str(e)[:50]}</i>',
-                                        ParagraphStyle('Note', parent=styles['Normal'],
-                                            fontSize=8, textColor=colors.HexColor('#666666'),
-                                            alignment=TA_CENTER)
-                                    ))
-                                    left_items.append(tiny())
+                            # 3D Volume Preview & Efficiency Analysis section removed
 
                             # Append all sections directly
                             for item in left_items:
@@ -3590,15 +3493,6 @@ with tab2:
 
                         # ── Build & download ──────────────────────────────────────────────
                         doc.build(elements)
-                        
-                        # Clean up temp chart directories now that PDF is built
-                        import shutil
-                        if 'temp_chart_dirs' in locals():
-                            for temp_dir in temp_chart_dirs:
-                                try:
-                                    shutil.rmtree(temp_dir)
-                                except:
-                                    pass
                         
                         buf.seek(0)
                         pdf_bytes = buf.getvalue()
@@ -3674,9 +3568,10 @@ with tab2:
 
                         # Primary Product
                         weight_val = project.get('weight', project.get('product_weight', 0.0))
+                        weight_display = f"{weight_val:,.2f} {disp_w_unit}" if weight_val > 0 else "Not entered"
                         st.success(f"""
                         **Primary Product**  
-                        Volume Weight of Water: {weight_val:,.2f} {disp_w_unit}  
+                        Volume Weight of Water: {weight_display}  
                         Unit Volume: {unit_vol_disp:,.4f} {disp_vol_unit}  
                         Quantity: {qty}  
                         Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
