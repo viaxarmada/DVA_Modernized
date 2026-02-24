@@ -2296,6 +2296,27 @@ with tab1:
                 </div>
                 """, unsafe_allow_html=True)
             
+
+            # DEBUG: Log weight data flow
+            if st.checkbox("🔍 Debug Weight Data", value=False):
+                st.write("**Session State:**")
+                st.write(f"- product_weight: {st.session_state.get('product_weight', 'NOT SET')}")
+                st.write(f"- primary_weight: {st.session_state.get('primary_weight', 'NOT SET')}")
+                st.write(f"- pref_weight_unit: {st.session_state.get('pref_weight_unit', 'NOT SET')}")
+                
+                if 'saved_primary_data' in st.session_state:
+                    st.write("**Saved Primary Data:**")
+                    st.write(st.session_state.saved_primary_data)
+                
+                if st.session_state.current_project_id:
+                    current_proj = next((p for p in st.session_state.projects 
+                                       if p['project_number'] == st.session_state.current_project_id), None)
+                    if current_proj:
+                        st.write("**Current Project Data:**")
+                        st.write(f"- weight: {current_proj.get('weight', 'NOT SET')}")
+                        st.write(f"- weight_unit: {current_proj.get('weight_unit', 'NOT SET')}")
+                        st.write(f"- project_number: {current_proj.get('project_number', 'NOT SET')}")
+
             # Save Primary Data Button
             st.markdown("")  # Small spacing
             if st.button("💾 Save Primary Data", use_container_width=True, type="secondary", key="save_primary_data"):
@@ -3529,6 +3550,20 @@ with tab2:
             
             for idx, project in enumerate(st.session_state.loaded_projects_overview):
                 with st.expander(f"📋 Project {project['project_number']} - {project['project_name']}", expanded=False):
+                    
+                    # DEBUG: Show project data
+                    if st.checkbox(f"🔍 Debug Project Data", value=False, key=f"debug_overview_{idx}_{project['project_number']}"):
+                        st.write("**Project Data Loaded in Overview:**")
+                        st.write(f"- weight: {project.get('weight', 'NOT FOUND')}")
+                        st.write(f"- product_weight: {project.get('product_weight', 'NOT FOUND')}")
+                        st.write(f"- weight_unit: {project.get('weight_unit', 'NOT FOUND')}")
+                        st.write(f"- primary_volume_mm3: {project.get('primary_volume_mm3', 'NOT FOUND')}")
+                        
+                        st.write("**All Keys in Project:**")
+                        st.code(", ".join(sorted(project.keys())))
+                        
+                        st.write("**Full Project Data:**")
+                        st.json(project)
                     
                     # ═══════════════════════════════════════════════════════════
                     # SECTION 1: Project Information & Calculation Results
