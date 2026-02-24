@@ -2166,12 +2166,12 @@ with tab1:
             weight_unit = st.session_state.pref_weight_unit
             
             weight = st.number_input(
-                f"Volume Weight of Water ({weight_unit})",
+                f"Weight of Water ({weight_unit})",
                 min_value=0.0,
                 value=st.session_state.get('product_weight', 0.0),
                 step=0.1,
                 format="%.2f",
-                help=f"Enter the volume weight of water in {weight_unit}",
+                help=f"Enter the weight of water in {weight_unit}",
                 key="product_weight"
             )
             st.info(f"ℹ️ Using **{weight_unit}** (set in Unit Preferences)")
@@ -3406,7 +3406,7 @@ with tab2:
                             weight_val = project.get('weight', project.get('product_weight', 0.0))
                             
                             left_items.append(kv_table([
-                                ['Volume Weight of Water:', f"{weight_val} {w_unit}"],
+                                ['Weight of Water:', f"{weight_val} {w_unit}"],
                                 ['Unit Volume:',  f"{fmv(unit_vol_mm3, vol_unit)} {vol_unit}"],
                                 ['Quantity:',     str(qty)],
                                 ['Total Volume:', f"{fmv(total_vol_mm3,vol_unit)} {vol_unit}"],
@@ -3571,7 +3571,7 @@ with tab2:
                         weight_display = f"{weight_val:,.2f} {disp_w_unit}" if weight_val > 0 else "Not entered"
                         st.success(f"""
                         **Primary Product**  
-                        Volume Weight of Water: {weight_display}  
+                        Weight of Water: {weight_display}  
                         Unit Volume: {unit_vol_disp:,.4f} {disp_vol_unit}  
                         Quantity: {qty}  
                         Total Volume: {total_vol_disp:,.4f} {disp_vol_unit}
